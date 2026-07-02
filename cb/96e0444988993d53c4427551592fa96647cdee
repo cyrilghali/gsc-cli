@@ -1,0 +1,30 @@
+package.json
+  s_c87d34490c6fa9::t_9d5ca41618dd03 15-21
+README.md
+  s_c87d34490c6fa9::t_6e799bfe22bdbe 76,78
+src/auth.ts
+  s_c87d34490c6fa9::t_14207d4633f5d2 140-153
+  s_c87d34490c6fa9::t_0f2baf79a1c5a0 177-180
+src/commands/query.ts
+  s_c87d34490c6fa9::t_3f6b876a685a60 14-16
+  s_c87d34490c6fa9::t_f635c2a1856874 45-46
+  s_c87d34490c6fa9::t_31c058da38a55b 75-79,88-89,92-95,97
+src/api.ts
+  s_c87d34490c6fa9::t_3417db60d11208 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.9",
+  "base_commit_sha": "cb96e0444988993d53c4427551592fa96647cdee",
+  "prompts": {},
+  "sessions": {
+    "s_c87d34490c6fa9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "550c8d3a-afdb-4fd6-bca1-858b0663cfeb",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    }
+  }
+}

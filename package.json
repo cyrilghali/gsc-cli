@@ -1,0 +1,29 @@
+{
+  "name": "gsc-cli",
+  "version": "0.1.0",
+  "description": "Google Search Console from the command line",
+  "type": "module",
+  "bin": {
+    "gsc": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test test/*.test.ts",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
+  "license": "MIT"
+}

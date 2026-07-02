@@ -11,6 +11,9 @@ const TYPES = ['web', 'image', 'video', 'news', 'discover', 'googleNews'] as con
 const SORT_FIELDS = ['clicks', 'impressions', 'ctr', 'position'] as const
 const OUTPUTS = ['table', 'json', 'csv'] as const
 
+/** With --sort, fetch this many rows before ranking, so the top-N is global rather than a re-ordered top-N-by-clicks. */
+const SORT_FETCH_CAP = 100_000
+
 type SortField = (typeof SORT_FIELDS)[number]
 
 interface QueryOptions {
@@ -39,8 +42,8 @@ export function registerQueryCommand(program: Command): void {
     .option('-t, --type <type>', TYPES.join(' | '), 'web')
     .option('-f, --filter <filter>', '"<dimension> <operator> <expression>" (repeatable, ANDed)', collect, [])
     .option('-n, --limit <n>', 'maximum number of rows', '1000')
-    .option('--sort <field>', `sort by ${SORT_FIELDS.join(' | ')} (descending; the API default is clicks)`)
-    .option('--asc', 'sort ascending instead of descending')
+    .option('--sort <field>', `rank by ${SORT_FIELDS.join(' | ')} (descending): fetches the full dataset, then keeps the top --limit rows`)
+    .option('--asc', 'rank ascending instead of descending (implies --sort clicks when no field is given)')
     .option('--fresh', 'include fresh data that is not yet final')
     .option('-o, --output <format>', OUTPUTS.join(' | '), 'table')
     .addHelpText(
@@ -69,7 +72,11 @@ Filter operators: contains, equals, notContains, notEquals, includingRegex, excl
         days: parsePositiveInt(opts.days, '--days'),
       })
       const filters = opts.filter.map(parseFilter)
-      const sort = opts.sort ? (pickCanonical(opts.sort, SORT_FIELDS, '--sort') as SortField) : undefined
+      const sort: SortField | undefined = opts.sort
+        ? (pickCanonical(opts.sort, SORT_FIELDS, '--sort') as SortField)
+        : opts.asc
+          ? 'clicks'
+          : undefined
 
       const requestBody: SearchAnalyticsRequest = {
         ...range,
@@ -78,11 +85,16 @@ Filter operators: contains, equals, notContains, notEquals, includingRegex, excl
         ...(filters.length > 0 ? { dimensionFilterGroups: [{ filters }] } : {}),
         ...(opts.fresh ? { dataState: 'all' } : {}),
       }
-      const rows = await querySearchAnalytics(site, requestBody, limit)
+      // The API only orders by clicks; a global ranking by another metric needs the whole dataset first.
+      const fetched = await querySearchAnalytics(site, requestBody, sort ? Math.max(limit, SORT_FETCH_CAP) : limit)
 
       if (sort) {
-        rows.sort((a: SearchAnalyticsRow, b: SearchAnalyticsRow) => (opts.asc ? a[sort] - b[sort] : b[sort] - a[sort]))
+        fetched.sort((a: SearchAnalyticsRow, b: SearchAnalyticsRow) => (opts.asc ? a[sort] - b[sort] : b[sort] - a[sort]))
+        if (fetched.length >= SORT_FETCH_CAP) {
+          console.error(pc.yellow(`Note: ranking computed over the first ${formatInt(SORT_FETCH_CAP)} rows; the dataset is larger.`))
+        }
       }
+      const rows = fetched.slice(0, limit)
 
       const flat = rows.map((row) => flattenRow(row, dimensions))
       const headers = [...dimensions, 'clicks', 'impressions', 'ctr', 'position']

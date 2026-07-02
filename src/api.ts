@@ -21,7 +21,7 @@ function hintForStatus(status: number): string | undefined {
     case 401:
       return 'Your credentials are invalid or expired. Run `gsc auth login` again.'
     case 403:
-      return 'You do not have access to this property, or the Search Console API is not enabled for your Google Cloud project. For service accounts, add the service account email as a user of the property in Search Console (Settings → Users and permissions).'
+      return 'You do not have access to this property, or the Search Console API is not enabled for your Google Cloud project. For service accounts, add the service account email as a user of the property in Search Console (Settings → Users and permissions). If you signed in with --readonly and this is a write operation, run `gsc auth login` again without --readonly.'
     case 404:
       return 'Property not found. Use the exact property URL shown by `gsc sites list`: `https://example.com/` for URL-prefix properties or `sc-domain:example.com` for domain properties.'
     case 429:

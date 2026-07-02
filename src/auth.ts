@@ -134,17 +134,23 @@ function authorizeViaLoopback(
         res.writeHead(404).end()
         return
       }
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-      res.end('<!doctype html><meta charset="utf-8"><title>gsc-cli</title><p style="font-family:system-ui;margin:3rem">Signed in — you can close this tab and return to the terminal.</p>')
-
       const error = url.searchParams.get('error')
       const code = url.searchParams.get('code')
       const gotState = url.searchParams.get('state')
-      finish(() => {
-        if (error) reject(new CliError(`Authorization failed: ${error}`))
-        else if (!code || gotState !== state) reject(new CliError('Authorization response was invalid (missing code or state mismatch).'))
-        else resolve({ code, redirectUri })
-      })
+
+      const page = (message: string): string =>
+        `<!doctype html><meta charset="utf-8"><title>gsc-cli</title><p style="font-family:system-ui;margin:3rem">${message}</p>`
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      if (error) {
+        res.end(page(`Authorization failed: ${escapeHtml(error)} — return to the terminal for details.`))
+        finish(() => reject(new CliError(`Authorization failed: ${error}`)))
+      } else if (!code || gotState !== state) {
+        res.end(page('Authorization response was invalid — return to the terminal for details.'))
+        finish(() => reject(new CliError('Authorization response was invalid (missing code or state mismatch).')))
+      } else {
+        res.end(page('Signed in — you can close this tab and return to the terminal.'))
+        finish(() => resolve({ code, redirectUri }))
+      }
     })
 
     server.listen(0, '127.0.0.1', () => {
@@ -166,6 +172,10 @@ function authorizeViaLoopback(
       openBrowser(authUrl.toString())
     })
   })
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 }
 
 function openBrowser(url: string): void {

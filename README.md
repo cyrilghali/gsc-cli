@@ -73,8 +73,9 @@ gsc query --type discover --days 7 --fresh       # fresh (non-final) Discover da
 ```
 
 - Dimensions: `query`, `page`, `country`, `device`, `date`, `searchAppearance`.
-- Filters: `"<dimension> <operator> <expression>"`, repeatable (ANDed). Operators: `contains`, `equals`, `notContains`, `notEquals`, `includingRegex`, `excludingRegex` ([RE2 syntax](https://github.com/google/re2/wiki/Syntax)). Countries are ISO 3166-1 alpha-3 codes (`fra`, `usa`…), devices are `desktop`/`mobile`/`tablet`.
+- Filters: `"<dimension> <operator> <expression>"`, repeatable (ANDed). Filterable dimensions: `query`, `page`, `country`, `device`, `searchAppearance` — `date` is not filterable, bound the period with `--start`/`--end` instead. Operators: `contains`, `equals`, `notContains`, `notEquals`, `includingRegex`, `excludingRegex` ([RE2 syntax](https://github.com/google/re2/wiki/Syntax)). Countries are ISO 3166-1 alpha-3 codes (`fra`, `usa`…), devices are `desktop`/`mobile`/`tablet`.
 - Dates default to a 28-day window ending 3 days ago (Search Console data is only final after ~3 days); override with `--days`, `--start`/`--end`, or include today's partial data with `--fresh`.
+- The API only orders by clicks. `--sort` therefore fetches the whole dataset (up to 100 000 rows) before keeping the top `--limit` rows, so the ranking is global. `--asc` alone means `--sort clicks --asc`.
 - `--limit` above 25 000 paginates automatically. `table` output is for humans (formatted numbers, summary on stderr); `csv`/`json` emit raw values for machines.
 
 ### Sitemaps

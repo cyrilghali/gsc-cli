@@ -1,0 +1,28 @@
+docs/plans/2026-07-03-001-feat-gtrends-audit-grade-plan.md
+  s_9f4684abb0c035::t_06a9f30efef79e 44
+  s_9f4684abb0c035::t_cdb30a36fcd4f9 61,68-69,71,73,78-81,83,85
+  s_9f4684abb0c035::t_b4748ebea9d4f9 51
+  s_9f4684abb0c035::t_23d9080cc5f0e1 139-144
+  s_9f4684abb0c035::t_1c455a4844fa39 147-148
+  s_9f4684abb0c035::t_7465b3efa09140 1-43,45-49,52-60,62-67,70,72,74-77,82,84,86-97,100-102,104-138,145-146,149-156,159-165
+  s_9f4684abb0c035::t_73cc9ee291fc15 98-99
+  s_9f4684abb0c035::t_f9f881abbadffe 50
+  s_9f4684abb0c035::t_93d68d225542af 157-158
+  s_9f4684abb0c035::t_4e1a830c1db55b 103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4f09a994ac0ab3febe50f05a4a535b52c701cfbd",
+  "prompts": {},
+  "sessions": {
+    "s_9f4684abb0c035": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac5d8842-a41d-4b28-869b-1709fa7870dc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    }
+  }
+}

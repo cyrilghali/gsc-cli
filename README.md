@@ -129,6 +129,7 @@ gtrends trending --geo FR                          # today's trending searches
 ```
 
 - Values are Google's own 0–100 scale, relative to each series' own peak (100). Interest and related queries accept `--geo` (two-letter country, worldwide if omitted), `--time` (`now 1-H`, `now 7-d`, `today 12-m`, `today 5-y`, `all`, …) and `--category`.
+- Because every series is normalized to its own peak, a term with almost no volume still shows `100`. `interest` flags such series in the table: `⚠noise` (negligible or just emerging) or `~seasonal` (dormant between recurring peaks), so a normalized `100` isn't misread as real popularity.
 - `table` output draws sparklines for humans; `csv`/`json` emit the full timeline / ranked lists for machines.
 - No credentials are stored — nothing to log in to, nothing under `~/.config`.
 

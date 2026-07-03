@@ -3,7 +3,7 @@ import pc from 'picocolors'
 import { pickCanonical } from '../../cli-util.ts'
 import { renderTable, toCsv, truncate } from '../../format.ts'
 import { interestOverTime } from '../api.ts'
-import { resample, sparkline } from '../sparkline.ts'
+import { assessVolume, resample, sparkline } from '../sparkline.ts'
 
 const TIMEFRAMES = ['now 1-H', 'now 4-H', 'now 1-d', 'now 7-d', 'today 1-m', 'today 3-m', 'today 12-m', 'today 5-y', 'all'] as const
 const OUTPUTS = ['table', 'json', 'csv'] as const
@@ -67,6 +67,7 @@ Examples:
       }
 
       // Table: one sparkline summary row per keyword.
+      let anyLow = false
       const rows = keywords.map((kw, i) => {
         const series = points.map((p) => p.value[i] ?? 0)
         const spark = sparkline(resample(series, SPARK_WIDTH))
@@ -74,10 +75,20 @@ Examples:
         const max = Math.max(...series)
         const avg = series.reduce((a, b) => a + b, 0) / series.length
         const latest = series[series.length - 1]
-        return [truncate(kw, 24), spark, String(min), String(round(avg)), String(max), String(latest)]
+        const vol = assessVolume(series)
+        if (vol.low) anyLow = true
+        const label = vol.low ? `${truncate(kw, 20)} ${vol.shape === 'seasonal' ? '~seasonal' : '⚠noise'}` : truncate(kw, 24)
+        return [label, spark, String(min), String(round(avg)), String(max), String(latest)]
       })
       console.log(renderTable(['KEYWORD', `TREND (${points.length} pts)`, 'MIN', 'AVG', 'MAX', 'NOW'], rows, [false, false, true, true, true, true]))
       const span = `${points[0].formattedTime} → ${points[points.length - 1].formattedTime}`
       console.error(pc.dim(`\n${span}${opts.geo ? ` · ${opts.geo}` : ' · worldwide'} · values relative to peak (100)`))
+      if (anyLow) {
+        console.error(
+          pc.dim(
+            '⚠noise / ~seasonal: series is mostly zero, so values are normalized off a tiny base — “noise” is likely negligible or just emerging, “seasonal” is a term dormant between recurring peaks.',
+          ),
+        )
+      }
     })
 }

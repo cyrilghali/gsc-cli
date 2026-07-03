@@ -1,0 +1,22 @@
+test/trends.test.ts
+  s_9f4684abb0c035::t_95000d74e84029 109-115
+src/trends/commands/interest.ts
+  s_9f4684abb0c035::t_b70a0fd708e25d 31,33,36,41,44
+  s_9f4684abb0c035::t_45e39e8268539b 118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0df7efb9471028aa6e17a1b51c49de2a630c06ec",
+  "prompts": {},
+  "sessions": {
+    "s_9f4684abb0c035": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac5d8842-a41d-4b28-869b-1709fa7870dc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+README.md
+  s_9f4684abb0c035::t_e77627f647a9ce 111-134
+  s_9f4684abb0c035::t_5312d667f5508e 5-6
+src/trends/commands/interest.ts
+  s_9f4684abb0c035::t_357e4db71e4d66 1-83
+src/trends/commands/trending.ts
+  s_9f4684abb0c035::t_7499eab9f68247 1-63
+package.json
+  s_9f4684abb0c035::t_31096c5fa0f415 7-8
+src/trends/index.ts
+  s_9f4684abb0c035::t_9ce32b83571e6e 1-39
+src/trends/api.ts
+  s_9f4684abb0c035::t_7c41aea9987bc9 163-182,184-201,203
+  s_9f4684abb0c035::t_4ecc376435fb7e 24
+  s_9f4684abb0c035::t_80e02061b5a34e 53-54,57-74
+  s_9f4684abb0c035::t_93cba7fa6a042b 1-23,25-52,55-56,75-162,183,202,204
+src/trends/sparkline.ts
+  s_9f4684abb0c035::t_aefc63eb7b0116 1-24
+src/trends/commands/related.ts
+  s_9f4684abb0c035::t_07a884f1a5cfee 1-69
+test/trends.test.ts
+  s_9f4684abb0c035::t_5c39ec0968359d 1-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7010261ea7292f107e46a961bd620d9171331bfb",
+  "prompts": {},
+  "sessions": {
+    "s_9f4684abb0c035": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac5d8842-a41d-4b28-869b-1709fa7870dc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    }
+  }
+}

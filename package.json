@@ -4,7 +4,8 @@
   "description": "Google Search Console from the command line",
   "type": "module",
   "bin": {
-    "gsc": "dist/index.js"
+    "gsc": "dist/index.js",
+    "gtrends": "dist/trends/index.js"
   },
   "files": [
     "dist"

@@ -2,6 +2,8 @@
 
 Google Search Console from the command line: search analytics, sitemaps, URL inspection.
 
+Ships two binaries: **`gsc`** (Search Console, needs your Google credentials) and **`gtrends`** (Google Trends, no auth — see [below](#gtrends-google-trends)).
+
 ```
 $ gsc query sc-domain:example.com --days 28
 QUERY                CLICKS  IMPRESSIONS    CTR  POSITION
@@ -105,6 +107,30 @@ gsc sites remove https://old-site.example/
 ```
 
 `add`/`remove` and sitemap `submit`/`delete` need full scope — they fail politely if you logged in with `--readonly`.
+
+## `gtrends` (Google Trends)
+
+A second binary for Google Trends. It needs **no auth and no setup** — it talks to Trends' undocumented internal endpoints (the same ones the website calls), so it can hit rate limits (HTTP 429); it retries with backoff and tells you to wait if it gives up.
+
+```
+$ gtrends interest chatgpt claude --geo US
+KEYWORD  TREND (53 pts)                                    MIN  AVG  MAX  NOW
+-------  ------------------------------------------------  ---  ---  ---  ---
+chatgpt  ▃▄▅▆▆▅▅▆▆▇█▇▇▇▇█▇█▆▄▆▆▄▁▂▄▅▄▅▃▄▅▅▆▄▆▅▄▅▄▄▅▄▄▄▅▃▃   54   80  100   65
+claude   ▁▁▁▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁▂▁▂▁▁▁▁▂▂▃▃▄▄▅█▇▆▇█▇▇▆▆▆▆█▇█▆▅    4   14   33   23
+```
+
+```sh
+gtrends interest "bitcoin"                       # interest over time as a sparkline (0–100)
+gtrends interest pizza sushi tacos --geo US       # compare up to 5 terms
+gtrends interest chatgpt --time "today 5-y" --output csv > interest.csv
+gtrends related "electric car" --geo US           # top (established) + rising (breakout) queries
+gtrends trending --geo FR                          # today's trending searches
+```
+
+- Values are Google's own 0–100 scale, relative to each series' own peak (100). Interest and related queries accept `--geo` (two-letter country, worldwide if omitted), `--time` (`now 1-H`, `now 7-d`, `today 12-m`, `today 5-y`, `all`, …) and `--category`.
+- `table` output draws sparklines for humans; `csv`/`json` emit the full timeline / ranked lists for machines.
+- No credentials are stored — nothing to log in to, nothing under `~/.config`.
 
 ## Development
 

@@ -1,0 +1,29 @@
+test/trends.test.ts
+  s_9f4684abb0c035::t_f881e7ef7fd569 79-114
+  s_9f4684abb0c035::t_a1dcc2e192e16f 3-4
+src/trends/commands/interest.ts
+  s_9f4684abb0c035::t_0515e02b846999 4,12,23-53
+  s_9f4684abb0c035::t_b60ff210cad310 58-60,70,78-82,93,102-103,107,109,118-119,121,123-124
+  s_9f4684abb0c035::t_4e75791675c983 54
+README.md
+  s_9f4684abb0c035::t_7ead5b559111f9 126
+  s_9f4684abb0c035::t_b0fef99ea7a3bb 132
+src/trends/api.ts
+  s_9f4684abb0c035::t_313f979248c7c9 116-125,127,130-132,135-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4be3f07451ac160b2bccd307ac4e60d7e0ea1a59",
+  "prompts": {},
+  "sessions": {
+    "s_9f4684abb0c035": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac5d8842-a41d-4b28-869b-1709fa7870dc",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    }
+  }
+}

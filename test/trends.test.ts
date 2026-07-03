@@ -106,6 +106,13 @@ test('buildComparison dedupes repeated geos before counting the cap', () => {
   assert.deepEqual(labels, ['x']) // single distinct geo → keyword label per KTD4
 })
 
+test('buildComparison dedupes repeated keywords so labels/series stay unique', () => {
+  // Duplicate keywords would otherwise collapse in JSON output (Object.fromEntries, last wins).
+  const { items, labels } = buildComparison(['pizza', 'pizza'], [''])
+  assert.equal(items.length, 1)
+  assert.deepEqual(labels, ['pizza'])
+})
+
 test('buildComparison throws over the 5-series cap', () => {
   assert.throws(
     () => buildComparison(['a', 'b', 'c'], ['FR', 'BE']),

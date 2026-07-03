@@ -18,8 +18,6 @@ interface Options {
   output: string
 }
 
-const round = (n: number): number => Math.round(n)
-
 /**
  * Build the keyword × geo comparison items (and their display labels) for one `explore`
  * request. Google compares at most 5 items at once, so the cross-product is capped.
@@ -30,19 +28,20 @@ export function buildComparison(
   keywords: string[],
   geos: string[],
 ): { items: { keyword: string; geo: string }[]; labels: string[] } {
+  const uniqueKeywords = [...new Set(keywords)]
   const uniqueGeos = [...new Set(geos)]
-  const total = keywords.length * uniqueGeos.length
+  const total = uniqueKeywords.length * uniqueGeos.length
   if (total > MAX_SERIES) {
     throw new CliError(
-      `Too many series to compare: ${keywords.length} keyword(s) × ${uniqueGeos.length} geo(s) = ${total}.`,
+      `Too many series to compare: ${uniqueKeywords.length} keyword(s) × ${uniqueGeos.length} geo(s) = ${total}.`,
       `Google Trends compares at most ${MAX_SERIES} series at once. Reduce the keywords or geos.`,
     )
   }
   const multiGeo = uniqueGeos.length > 1
-  const multiKeyword = keywords.length > 1
+  const multiKeyword = uniqueKeywords.length > 1
   const items: { keyword: string; geo: string }[] = []
   const labels: string[] = []
-  for (const keyword of keywords) {
+  for (const keyword of uniqueKeywords) {
     for (const geo of uniqueGeos) {
       items.push({ keyword, geo })
       const geoLabel = geo || 'worldwide'
@@ -116,7 +115,7 @@ Examples:
         const vol = assessVolume(series)
         if (vol.low) anyLow = true
         const shown = vol.low ? `${truncate(label, 22)} ${vol.shape === 'seasonal' ? '~seasonal' : '⚠noise'}` : truncate(label, 32)
-        return [shown, spark, String(min), String(round(avg)), String(max), String(latest)]
+        return [shown, spark, String(min), String(Math.round(avg)), String(max), String(latest)]
       })
       console.log(renderTable(['SERIES', `TREND (${points.length} pts)`, 'MIN', 'AVG', 'MAX', 'NOW'], rows, [false, false, true, true, true, true]))
       const span = `${points[0].formattedTime} → ${points[points.length - 1].formattedTime}`

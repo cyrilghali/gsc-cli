@@ -113,19 +113,28 @@ export interface TimelinePoint {
   value: number[]
 }
 
-/** Interest over time for one or more compared keywords (each value[] index = one keyword). */
+/**
+ * Interest over time for prepared comparison items (each `value[]` index = one item,
+ * in the same order). Labels are the caller's concern — this stays display-agnostic.
+ *
+ * Cross-geo comparison relies on Google jointly normalizing all items to one shared
+ * 0–100 scale, which holds ONLY because every item rides in a single `explore` request.
+ * Confirmed empirically 2026-07-03: `thanksgiving` across US,FR in one request returns
+ * peaks US=100 / FR=4 (jointly scaled), whereas each geo alone returns 100 (independent).
+ * Do not split this into per-geo requests or cross-geo comparison silently breaks.
+ */
 export async function interestOverTime(
-  keywords: string[],
-  geo: string,
+  items: { keyword: string; geo: string }[],
   time: string,
   category: number,
-): Promise<{ keywords: string[]; points: TimelinePoint[] }> {
-  const items = keywords.map((keyword) => ({ keyword, geo, time }))
-  const widgets = await explore(items, category)
+): Promise<{ points: TimelinePoint[] }> {
+  const comparisonItems: ComparisonItem[] = items.map((it) => ({ ...it, time }))
+  const widgets = await explore(comparisonItems, category)
   const ts = widgets.find((w) => w.id === 'TIMESERIES')
   if (!ts) throw new CliError('Google Trends did not return a time-series widget for that query.')
-  const data = await widgetData<{ default: { timelineData: TimelinePoint[] } }>('multiline', ts, geo)
-  return { keywords, points: data.default?.timelineData ?? [] }
+  // The geo passed here only feeds the already-cached cookie, so any item's geo is equivalent.
+  const data = await widgetData<{ default: { timelineData: TimelinePoint[] } }>('multiline', ts, items[0]?.geo ?? '')
+  return { points: data.default?.timelineData ?? [] }
 }
 
 export interface RankedQuery {

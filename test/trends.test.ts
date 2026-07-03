@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { CliError } from '../src/config.ts'
+import { buildComparison } from '../src/trends/commands/interest.ts'
 import { assessVolume, resample, sparkline } from '../src/trends/sparkline.ts'
 
 test('sparkline maps min to the lowest block and max to the highest', () => {
@@ -73,4 +75,40 @@ test('assessVolume treats scattered singletons as noise, not seasonal', () => {
   const v = assessVolume(series)
   assert.equal(v.low, true)
   assert.equal(v.shape, 'noise')
+})
+
+test('buildComparison: single keyword across geos yields geo-code labels', () => {
+  const { items, labels } = buildComparison(['climatiseur mobile'], ['FR', 'BE', 'CH', 'LU'])
+  assert.equal(items.length, 4)
+  assert.deepEqual(labels, ['FR', 'BE', 'CH', 'LU'])
+  assert.deepEqual(items[0], { keyword: 'climatiseur mobile', geo: 'FR' })
+})
+
+test('buildComparison: multiple keywords in one worldwide geo keeps keyword labels', () => {
+  const { items, labels } = buildComparison(['pizza', 'sushi'], [''])
+  assert.equal(items.length, 2)
+  assert.deepEqual(labels, ['pizza', 'sushi'])
+})
+
+test('buildComparison: keyword × geo cross-product labels both axes', () => {
+  const { labels } = buildComparison(['a', 'b'], ['FR', 'BE'])
+  assert.deepEqual(labels, ['a (FR)', 'a (BE)', 'b (FR)', 'b (BE)'])
+})
+
+test('buildComparison: worldwide single geo one keyword keeps the keyword label', () => {
+  const { labels } = buildComparison(['pizza'], [''])
+  assert.deepEqual(labels, ['pizza'])
+})
+
+test('buildComparison dedupes repeated geos before counting the cap', () => {
+  const { items, labels } = buildComparison(['x'], ['FR', 'FR'])
+  assert.equal(items.length, 1)
+  assert.deepEqual(labels, ['x']) // single distinct geo → keyword label per KTD4
+})
+
+test('buildComparison throws over the 5-series cap', () => {
+  assert.throws(
+    () => buildComparison(['a', 'b', 'c'], ['FR', 'BE']),
+    (e) => e instanceof CliError && /= 6/.test(e.message),
+  )
 })

@@ -123,12 +123,13 @@ claude   ▁▁▁▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁▂▁▂▁▁�
 ```sh
 gtrends interest "bitcoin"                       # interest over time as a sparkline (0–100)
 gtrends interest pizza sushi tacos --geo US       # compare up to 5 terms
+gtrends interest "climatiseur mobile" --geo FR,BE,CH,LU   # one term across geos, cross-comparable
 gtrends interest chatgpt --time "today 5-y" --output csv > interest.csv
 gtrends related "electric car" --geo US           # top (established) + rising (breakout) queries
 gtrends trending --geo FR                          # today's trending searches
 ```
 
-- Values are Google's own 0–100 scale, relative to each series' own peak (100). Interest and related queries accept `--geo` (two-letter country, worldwide if omitted), `--time` (`now 1-H`, `now 7-d`, `today 12-m`, `today 5-y`, `all`, …) and `--category`.
+- Values are Google's own 0–100 scale, relative to each series' own peak (100). `--geo` takes a two-letter country (worldwide if omitted); `interest` also accepts a comma-separated list (`--geo FR,BE,CH,LU`) to compare one keyword across countries on a single shared scale — keywords × geos must stay ≤ 5. `--time` (`now 1-H`, `now 7-d`, `today 12-m`, `today 5-y`, `all`, …) and `--category` apply to both `interest` and `related`.
 - Because every series is normalized to its own peak, a term with almost no volume still shows `100`. `interest` flags such series in the table: `⚠noise` (negligible or just emerging) or `~seasonal` (dormant between recurring peaks), so a normalized `100` isn't misread as real popularity.
 - `table` output draws sparklines for humans; `csv`/`json` emit the full timeline / ranked lists for machines.
 - No credentials are stored — nothing to log in to, nothing under `~/.config`.

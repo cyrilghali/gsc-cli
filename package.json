@@ -1,5 +1,5 @@
 {
-  "name": "@cyrilghali/gsc-cli",
+  "name": "@kyrghl/gsc-cli",
   "version": "0.1.0",
   "description": "Google Search Console and Google Trends from the command line — gsc + gtrends",
   "type": "module",

@@ -1,8 +1,8 @@
 import type { Command } from 'commander'
 import pc from 'picocolors'
-import { pickCanonical } from '../../cli-util.ts'
+import { parsePositiveInt, pickCanonical } from '../../cli-util.ts'
 import { renderTable, toCsv, truncate } from '../../format.ts'
-import { type RankedQuery, relatedQueries } from '../api.ts'
+import { type RankedQuery, relatedQueries, validateGeo } from '../api.ts'
 
 const TIMEFRAMES = ['now 1-H', 'now 4-H', 'now 1-d', 'now 7-d', 'today 1-m', 'today 3-m', 'today 12-m', 'today 5-y', 'all'] as const
 const OUTPUTS = ['table', 'json', 'csv'] as const
@@ -36,9 +36,11 @@ Examples:
       const output = pickCanonical(opts.output, OUTPUTS, '--output')
       const time = pickCanonical(opts.time, TIMEFRAMES, '--time')
       const category = Number(opts.category) || 0
-      const limit = Math.max(1, Number(opts.limit) || 15)
+      const limit = parsePositiveInt(opts.limit, '--limit')
+      const geo = opts.geo.trim().toUpperCase()
+      validateGeo(geo)
 
-      const { top, rising } = await relatedQueries(keyword, opts.geo, time, category)
+      const { top, rising } = await relatedQueries(keyword, geo, time, category)
       const topN = top.slice(0, limit)
       const risingN = rising.slice(0, limit)
 

@@ -1,8 +1,8 @@
 import type { Command } from 'commander'
 import pc from 'picocolors'
-import { pickCanonical } from '../../cli-util.ts'
+import { parsePositiveInt, pickCanonical } from '../../cli-util.ts'
 import { renderTable, toCsv, truncate } from '../../format.ts'
-import { dailyTrends } from '../api.ts'
+import { dailyTrends, validateGeo } from '../api.ts'
 
 const OUTPUTS = ['table', 'json', 'csv'] as const
 
@@ -28,8 +28,9 @@ Examples:
     )
     .action(async (opts: Options) => {
       const output = pickCanonical(opts.output, OUTPUTS, '--output')
-      const limit = Math.max(1, Number(opts.limit) || 20)
+      const limit = parsePositiveInt(opts.limit, '--limit')
       const geo = (opts.geo || 'US').toUpperCase()
+      validateGeo(geo)
 
       const trends = (await dailyTrends(geo)).slice(0, limit)
       if (trends.length === 0) {

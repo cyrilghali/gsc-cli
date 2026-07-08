@@ -20,6 +20,8 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MAX_ROWS_PER_REQUEST, querySearchAnalytics, type SearchAnalyticsRow } from '../src/api.ts'
+import { CliError } from '../src/config.ts'
+import { patchEnv } from './helpers.ts'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,13 +39,11 @@ function rowsBody(rows: SearchAnalyticsRow[]): string {
   return JSON.stringify({ rows })
 }
 
-/** Build a serialised body for a large batch without creating SearchAnalyticsRow objects. */
+/** Build a serialised body for a large batch of minimal rows. */
 function bigBatchBody(count: number): string {
-  const pieces: string[] = []
-  for (let i = 0; i < count; i++) {
-    pieces.push(`{"clicks":${i},"impressions":0,"ctr":0,"position":0}`)
-  }
-  return `{"rows":[${pieces.join(',')}]}`
+  return JSON.stringify({
+    rows: Array.from({ length: count }, (_, i) => ({ clicks: i, impressions: 0, ctr: 0, position: 0 })),
+  })
 }
 
 /**
@@ -68,28 +68,16 @@ function setupTempConfig(): { xdgBase: string; cleanup: () => void } {
   return { xdgBase, cleanup: () => rmSync(xdgBase, { recursive: true, force: true }) }
 }
 
-/**
- * Set the env vars needed to route getAccessToken() through the OAuth tokens
- * path and return a restore function.
- */
-function patchEnv(xdgBase: string): () => void {
-  const savedXdg = process.env.XDG_CONFIG_HOME
-  const savedGac = process.env.GOOGLE_APPLICATION_CREDENTIALS
-  process.env.XDG_CONFIG_HOME = xdgBase
-  delete process.env.GOOGLE_APPLICATION_CREDENTIALS
-  return () => {
-    if (savedXdg === undefined) delete process.env.XDG_CONFIG_HOME
-    else process.env.XDG_CONFIG_HOME = savedXdg
-    if (savedGac === undefined) delete process.env.GOOGLE_APPLICATION_CREDENTIALS
-    else process.env.GOOGLE_APPLICATION_CREDENTIALS = savedGac
-  }
+/** Route getAccessToken() through the temp OAuth tokens (and away from any service account). */
+function patchAuthEnv(xdgBase: string): () => void {
+  return patchEnv({ XDG_CONFIG_HOME: xdgBase, GOOGLE_APPLICATION_CREDENTIALS: undefined })
 }
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 test('single short batch: loop stops after one fetch', async (t) => {
   const { xdgBase, cleanup } = setupTempConfig()
-  const restoreEnv = patchEnv(xdgBase)
+  const restoreEnv = patchAuthEnv(xdgBase)
   let fetchCount = 0
 
   t.mock.method(globalThis, 'fetch', async () => {
@@ -116,7 +104,7 @@ test('full batch triggers a second fetch; second batch terminates the loop', asy
   // the loop believes there may be more data.  We use limit = MAX + 1 so the
   // while condition still holds after the first batch.
   const { xdgBase, cleanup } = setupTempConfig()
-  const restoreEnv = patchEnv(xdgBase)
+  const restoreEnv = patchAuthEnv(xdgBase)
   let fetchCount = 0
 
   t.mock.method(globalThis, 'fetch', async () => {
@@ -145,11 +133,30 @@ test('full batch triggers a second fetch; second batch terminates the loop', asy
   }
 })
 
+test('HTTP 200 with non-JSON body throws CliError mentioning non-JSON', async (t) => {
+  const { xdgBase, cleanup } = setupTempConfig()
+  const restoreEnv = patchAuthEnv(xdgBase)
+
+  t.mock.method(globalThis, 'fetch', async () => {
+    return new Response('<!DOCTYPE html><p>Maintenance</p>', { status: 200 })
+  })
+
+  try {
+    await assert.rejects(
+      () => querySearchAnalytics('https://example.com/', BASE_REQUEST, 100),
+      (e: unknown) => e instanceof CliError && e.message.includes('non-JSON'),
+    )
+  } finally {
+    restoreEnv()
+    cleanup()
+  }
+})
+
 test('limit caps rows: loop exits once rows.length reaches limit without an extra fetch', async (t) => {
   // limit = 5, API returns exactly 5 rows.
   // After adding them: rows.length (5) === limit → while exits; no second fetch.
   const { xdgBase, cleanup } = setupTempConfig()
-  const restoreEnv = patchEnv(xdgBase)
+  const restoreEnv = patchAuthEnv(xdgBase)
   let fetchCount = 0
 
   t.mock.method(globalThis, 'fetch', async () => {

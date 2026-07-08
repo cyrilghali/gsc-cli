@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CliError } from '../src/config.ts'
-import { dailyTrends, decodeXml, parseGuardedJson, tag, validateGeo } from '../src/trends/api.ts'
+import { dailyTrends, decodeXml, interestOverTime, parseGuardedJson, tag, validateGeo } from '../src/trends/api.ts'
 
 // ── parseGuardedJson ───────────────────────────────────────────────────────────
 
@@ -143,6 +143,60 @@ test('dailyTrends parses RSS fixture: array shape, query, traffic and news items
   assert.equal(second.relatedQueries.length, 0)
   assert.equal(second.articleTitle, undefined)
   assert.equal(second.articleUrl, undefined)
+})
+
+// ── dailyTrends HTTP error branches ───────────────────────────────────────────
+
+test('dailyTrends throws CliError on HTTP 400 from RSS endpoint', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
+    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+    if (urlStr.includes('/trending/rss')) {
+      return new Response('', { status: 400 })
+    }
+    throw new Error('offline (cookie fetch suppressed in test)')
+  })
+
+  await assert.rejects(
+    () => dailyTrends('US'),
+    (e: unknown) => e instanceof CliError && /400/.test(e.message),
+  )
+})
+
+test('dailyTrends retries on 429 and resolves on second RSS attempt', async (t) => {
+  let rssCallCount = 0
+  t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
+    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+    if (urlStr.includes('/trending/rss')) {
+      rssCallCount++
+      if (rssCallCount === 1) return new Response('', { status: 429 })
+      return new Response(FIXTURE_XML, { status: 200, headers: { 'content-type': 'application/rss+xml' } })
+    }
+    // Cookie prefetch — throw so cookie() falls back to ''
+    throw new Error('offline (cookie fetch suppressed in test)')
+  })
+
+  const results = await dailyTrends('US')
+  assert.equal(results.length, 2)
+})
+
+// ── interestOverTime widget null guard ────────────────────────────────────────
+
+test('interestOverTime throws CliError on malformed widget with null request', async (t) => {
+  t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
+    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+    if (urlStr.includes('/trends/api/explore')) {
+      return new Response(
+        JSON.stringify({ widgets: [{ id: 'TIMESERIES', request: null, token: 't' }] }),
+        { status: 200 },
+      )
+    }
+    throw new Error('offline (cookie fetch suppressed in test)')
+  })
+
+  await assert.rejects(
+    () => interestOverTime([{ keyword: 'test', geo: 'US' }], 'today 12-m', 0),
+    (e: unknown) => e instanceof CliError && /malformed widget/.test(e.message),
+  )
 })
 
 // ── validateGeo ────────────────────────────────────────────────────────────────

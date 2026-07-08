@@ -5,6 +5,17 @@ import { pickCanonical } from '../cli-util.ts'
 import { CliError, readConfig, writeConfig } from '../config.ts'
 import { renderTable } from '../format.ts'
 
+export async function validateSiteExists(siteUrl: string): Promise<{ ok: boolean; nearMiss?: string }> {
+  const entries = await listSites()
+  const urls = entries.map((e) => e.siteUrl)
+  if (urls.includes(siteUrl)) return { ok: true }
+  const nearMiss = urls.find(
+    (u) => u.toLowerCase() === siteUrl.toLowerCase() ||
+      u.replace(/\/$/, '') === siteUrl.replace(/\/$/, ''),
+  )
+  return { ok: false, nearMiss }
+}
+
 export function registerSitesCommand(program: Command): void {
   const sites = program.command('sites').description('Manage Search Console properties')
 
@@ -56,16 +67,19 @@ export function registerSitesCommand(program: Command): void {
     .description('Set the default property used when [site] is omitted')
     .argument('<siteUrl>', 'property URL, e.g. https://example.com/ or sc-domain:example.com')
     .action(async (siteUrl: string) => {
-      const entries = await listSites()
-      const urls = entries.map((e) => e.siteUrl)
-      if (!urls.includes(siteUrl)) {
-        const nearMiss = urls.find(
-          (u) => u.toLowerCase() === siteUrl.toLowerCase() ||
-            u.replace(/\/$/, '') === siteUrl.replace(/\/$/, ''),
-        )
+      let validation: { ok: boolean; nearMiss?: string }
+      try {
+        validation = await validateSiteExists(siteUrl)
+      } catch {
+        console.error(pc.dim('Could not validate against your Search Console account — saving anyway.'))
+        writeConfig({ ...readConfig(), defaultSite: siteUrl })
+        console.log(`${pc.green('✓')} Default site set to ${siteUrl}`)
+        return
+      }
+      if (!validation.ok) {
         throw new CliError(
           'Property not found in your Search Console account.',
-          `Run 'gsc sites list' to see available properties.${nearMiss ? ` Did you mean: ${nearMiss}` : ''}`,
+          `Run \`gsc sites list\` to see available properties.${validation.nearMiss ? ` Did you mean: ${validation.nearMiss}?` : ''}`,
         )
       }
       writeConfig({ ...readConfig(), defaultSite: siteUrl })

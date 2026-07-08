@@ -3,8 +3,9 @@ import test from 'node:test'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseClientCredentialsFile } from '../src/auth.ts'
+import { getAccessToken, parseClientCredentialsFile } from '../src/auth.ts'
 import { CliError } from '../src/config.ts'
+import { patchEnv } from './helpers.ts'
 
 /** Write a JSON file in a fresh temp dir and return both the dir and file path. */
 function tempCreds(content: string): { dir: string; path: string } {
@@ -59,6 +60,32 @@ test('JSON without installed or web key throws CliError about not looking like O
     )
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('getAccessToken: expired token with refresh_token but no client credentials throws CliError about missing credentials', async () => {
+  const xdgBase = mkdtempSync(join(tmpdir(), 'gsc-auth-preflight-test-'))
+  const configDir = join(xdgBase, 'gsc-cli')
+  mkdirSync(configDir, { recursive: true })
+  writeFileSync(
+    join(configDir, 'tokens.json'),
+    JSON.stringify({
+      access_token: 'expired-access-token',
+      refresh_token: 'some-refresh-token',
+      expiry: Date.now() - 1000,
+      scope: 'https://www.googleapis.com/auth/webmasters.readonly',
+      // deliberately no client_id or client_secret
+    }),
+  )
+  const restoreEnv = patchEnv({ XDG_CONFIG_HOME: xdgBase, GOOGLE_APPLICATION_CREDENTIALS: undefined })
+  try {
+    await assert.rejects(
+      () => getAccessToken(),
+      (e: unknown) => e instanceof CliError && e.message.includes('missing OAuth client credentials'),
+    )
+  } finally {
+    restoreEnv()
+    rmSync(xdgBase, { recursive: true, force: true })
   }
 })
 

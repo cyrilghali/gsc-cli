@@ -21,16 +21,23 @@ let cachedCookie: string | undefined
 async function cookie(geo: string): Promise<string> {
   if (cachedCookie !== undefined) return cachedCookie
   try {
-    const res = await fetch(`${BASE}/trends/?geo=${encodeURIComponent(geo || 'US')}`, {
-      headers: { 'User-Agent': UA },
-    })
-    const raw = res.headers.get('set-cookie') ?? ''
-    // Keep just the `name=value` pairs, drop Path/Domain/Expires attributes.
-    cachedCookie = raw
-      .split(/,(?=\s*\w+=)/)
-      .map((c) => c.split(';')[0].trim())
-      .filter(Boolean)
-      .join('; ')
+    const ac = new AbortController()
+    const timer = setTimeout(() => ac.abort(), 10_000)
+    try {
+      const res = await fetch(`${BASE}/trends/?geo=${encodeURIComponent(geo || 'US')}`, {
+        headers: { 'User-Agent': UA },
+        signal: ac.signal,
+      })
+      const raw = res.headers.get('set-cookie') ?? ''
+      // Keep just the `name=value` pairs, drop Path/Domain/Expires attributes.
+      cachedCookie = raw
+        .split(/,(?=\s*\w+=)/)
+        .map((c) => c.split(';')[0].trim())
+        .filter(Boolean)
+        .join('; ')
+    } finally {
+      clearTimeout(timer)
+    }
   } catch {
     cachedCookie = ''
   }
@@ -68,27 +75,38 @@ export function validateGeo(geo: string): void {
   }
 }
 
-/** Shared fetch helper with 3× retry/backoff and cookie refresh on 429; used by getTrends and dailyTrends. */
 async function fetchWithRetry(url: string, geo: string): Promise<string> {
   const backoff = [800, 2500, 5000]
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Cookie: await cookie(geo), 'Accept-Language': 'en-US' },
-    })
-    if (res.status === 429) {
-      if (attempt < backoff.length) {
-        cachedCookie = undefined // a stale cookie is a common cause; fetch a fresh one on retry
-        await sleep(backoff[attempt])
-        continue
+    const ac = new AbortController()
+    const timer = setTimeout(() => ac.abort(), 30_000)
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': UA, Cookie: await cookie(geo), 'Accept-Language': 'en-US' },
+        signal: ac.signal,
+      })
+      if (res.status === 429) {
+        if (attempt < backoff.length) {
+          cachedCookie = undefined // a stale cookie is a common cause; fetch a fresh one on retry
+          await sleep(backoff[attempt])
+          continue
+        }
+        throw new CliError(
+          'Google Trends rate-limited the request (429).',
+          'These endpoints are unofficial and throttled. Wait a minute and retry, or narrow the query.',
+        )
       }
-      throw new CliError(
-        'Google Trends rate-limited the request (429).',
-        'These endpoints are unofficial and throttled. Wait a minute and retry, or narrow the query.',
-      )
+      if (res.status === 400) throw new CliError('Google Trends rejected the request (HTTP 400).', 'The geo, keyword, or timeframe combination was rejected. Check your inputs.')
+      if (!res.ok) throw new CliError(`Google Trends request failed (HTTP ${res.status}).`)
+      return res.text()
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new CliError('Google Trends request timed out (30 s).', 'Try again, or check your connection.')
+      }
+      throw err
+    } finally {
+      clearTimeout(timer)
     }
-    if (res.status === 400) throw new CliError('Google Trends rejected the request (HTTP 400).', 'The geo, keyword, or timeframe combination was rejected. Check your inputs.')
-    if (!res.ok) throw new CliError(`Google Trends request failed (HTTP ${res.status}).`)
-    return res.text()
   }
 }
 
@@ -133,7 +151,7 @@ async function widgetData<T>(kind: string, widget: Widget, geo: string): Promise
 export interface TimelinePoint {
   time: string
   formattedTime: string
-  value: number[]
+  value?: number[]
 }
 
 /**

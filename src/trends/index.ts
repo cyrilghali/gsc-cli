@@ -4,11 +4,11 @@ import { Command } from 'commander'
 import pc from 'picocolors'
 import { CliError } from '../config.ts'
 
-const require = createRequire(import.meta.url)
-const { version } = require('../../package.json') as { version: string }
 import { registerInterestCommand } from './commands/interest.ts'
 import { registerRelatedCommand } from './commands/related.ts'
 import { registerTrendingCommand } from './commands/trending.ts'
+
+const { version } = createRequire(import.meta.url)('../../package.json') as { version: string }
 
 const program = new Command()
 

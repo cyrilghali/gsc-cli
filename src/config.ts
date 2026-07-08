@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -36,9 +36,15 @@ export interface CliConfig {
 }
 
 function readJsonFile<T>(path: string): T | undefined {
-  if (!existsSync(path)) return undefined
+  let text: string
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as T
+    text = readFileSync(path, 'utf8')
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined
+    throw new CliError(`Could not read ${path}: ${err instanceof Error ? err.message : String(err)}`)
+  }
+  try {
+    return JSON.parse(text) as T
   } catch {
     throw new CliError(`Could not parse ${path}.`, 'The file is corrupted; delete it and try again.')
   }

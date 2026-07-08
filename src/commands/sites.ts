@@ -2,7 +2,7 @@ import type { Command } from 'commander'
 import pc from 'picocolors'
 import { addSite, listSites, removeSite } from '../api.ts'
 import { pickCanonical } from '../cli-util.ts'
-import { readConfig, writeConfig } from '../config.ts'
+import { CliError, readConfig, writeConfig } from '../config.ts'
 import { renderTable } from '../format.ts'
 
 export function registerSitesCommand(program: Command): void {
@@ -55,7 +55,19 @@ export function registerSitesCommand(program: Command): void {
     .command('use')
     .description('Set the default property used when [site] is omitted')
     .argument('<siteUrl>', 'property URL, e.g. https://example.com/ or sc-domain:example.com')
-    .action((siteUrl: string) => {
+    .action(async (siteUrl: string) => {
+      const entries = await listSites()
+      const urls = entries.map((e) => e.siteUrl)
+      if (!urls.includes(siteUrl)) {
+        const nearMiss = urls.find(
+          (u) => u.toLowerCase() === siteUrl.toLowerCase() ||
+            u.replace(/\/$/, '') === siteUrl.replace(/\/$/, ''),
+        )
+        throw new CliError(
+          'Property not found in your Search Console account.',
+          `Run 'gsc sites list' to see available properties.${nearMiss ? ` Did you mean: ${nearMiss}` : ''}`,
+        )
+      }
       writeConfig({ ...readConfig(), defaultSite: siteUrl })
       console.log(`${pc.green('✓')} Default site set to ${siteUrl}`)
     })

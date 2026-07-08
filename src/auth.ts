@@ -260,6 +260,9 @@ export async function getAccessToken(): Promise<string> {
   if (!tokens.refresh_token) {
     throw new CliError('The access token expired and no refresh token is stored.', 'Run `gsc auth login` again.')
   }
+  if (!tokens.client_id || !tokens.client_secret) {
+    throw new CliError('Stored tokens are missing OAuth client credentials.', "Run 'gsc auth login' again.")
+  }
   const refreshed = await tokenRequest({
     grant_type: 'refresh_token',
     refresh_token: tokens.refresh_token,

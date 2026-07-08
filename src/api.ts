@@ -57,7 +57,15 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     }
     throw new ApiError(res.status, message, hintForStatus(res.status))
   }
-  return (text ? JSON.parse(text) : undefined) as T
+  if (!text) return undefined as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new CliError(
+      'Search Console API returned a non-JSON response.',
+      `Body (first 200 chars): ${text.slice(0, 200)}`,
+    )
+  }
 }
 
 export interface SiteEntry {

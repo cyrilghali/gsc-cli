@@ -1,7 +1,7 @@
 {
-  "name": "gsc-cli",
+  "name": "@cyrilghali/gsc-cli",
   "version": "0.1.0",
-  "description": "Google Search Console from the command line",
+  "description": "Google Search Console and Google Trends from the command line — gsc + gtrends",
   "type": "module",
   "bin": {
     "gsc": "dist/index.js",
@@ -23,8 +23,27 @@
   "scripts": {
     "build": "tsc",
     "test": "node --test test/*.test.ts",
+    "prepare": "npm run build",
     "prepack": "npm run build"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cyrilghali/gsc-cli.git"
+  },
+  "homepage": "https://github.com/cyrilghali/gsc-cli#readme",
+  "bugs": {
+    "url": "https://github.com/cyrilghali/gsc-cli/issues"
+  },
+  "author": "Cyril Ghali",
+  "keywords": [
+    "google-search-console",
+    "google-trends",
+    "search-console",
+    "cli",
+    "seo",
+    "gsc",
+    "gtrends"
+  ],
   "dependencies": {
     "commander": "^14.0.0",
     "picocolors": "^1.1.1"

@@ -1,5 +1,7 @@
 # gsc-cli
 
+[![CI](https://github.com/cyrilghali/gsc-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/cyrilghali/gsc-cli/actions/workflows/ci.yml)
+
 Google Search Console from the command line: search analytics, sitemaps, URL inspection.
 
 Ships two binaries: **`gsc`** (Search Console, needs your Google credentials) and **`gtrends`** (Google Trends, no auth — see [below](#gtrends-google-trends)).
@@ -16,9 +18,10 @@ trail shoes women       188        4,510  4.17%       8.9
 ## Install
 
 ```sh
-npm install
-npm run build
-npm link        # makes `gsc` available on your PATH
+git clone https://github.com/cyrilghali/gsc-cli.git
+cd gsc-cli
+npm install     # also compiles (runs prepare → npm run build)
+npm link        # puts both `gsc` and `gtrends` on your PATH
 ```
 
 Requires Node ≥ 20 (≥ 23.6 to run the tests, which execute TypeScript directly).
@@ -114,7 +117,7 @@ A second binary for Google Trends. It needs **no auth and no setup** — it talk
 
 ```
 $ gtrends interest chatgpt claude --geo US
-KEYWORD  TREND (53 pts)                                    MIN  AVG  MAX  NOW
+SERIES   TREND (53 pts)                                    MIN  AVG  MAX  NOW
 -------  ------------------------------------------------  ---  ---  ---  ---
 chatgpt  ▃▄▅▆▆▅▅▆▆▇█▇▇▇▇█▇█▆▄▆▆▄▁▂▄▅▄▅▃▄▅▅▆▄▆▅▄▅▄▄▅▄▄▄▅▃▃   54   80  100   65
 claude   ▁▁▁▁▁▁▁▁▁▁▁▁▂▁▁▁▁▁▂▁▂▁▁▁▁▂▂▃▃▄▄▅█▇▆▇█▇▇▆▆▆▆█▇█▆▅    4   14   33   23
@@ -129,7 +132,7 @@ gtrends related "electric car" --geo US           # top (established) + rising (
 gtrends trending --geo FR                          # today's trending searches
 ```
 
-- Values are Google's own 0–100 scale, relative to each series' own peak (100). `--geo` takes a two-letter country (worldwide if omitted); `interest` also accepts a comma-separated list (`--geo FR,BE,CH,LU`) to compare one keyword across countries on a single shared scale — keywords × geos must stay ≤ 5. `--time` (`now 1-H`, `now 7-d`, `today 12-m`, `today 5-y`, `all`, …) and `--category` apply to both `interest` and `related`.
+- Values are Google's own 0–100 scale, relative to each series' own peak (100). `--geo` takes a two-letter country (`trending` defaults to US; `interest` and `related` default to worldwide); `interest` also accepts a comma-separated list (`--geo FR,BE,CH,LU`) to compare one keyword across countries on a single shared scale — keywords × geos must stay ≤ 5. `--time` (`now 1-H`, `now 4-H`, `now 1-d`, `now 7-d`, `today 1-m`, `today 3-m`, `today 12-m`, `today 5-y`, `all`) and `--category` apply to both `interest` and `related`.
 - Because every series is normalized to its own peak, a term with almost no volume still shows `100`. `interest` flags such series in the table: `⚠noise` (negligible or just emerging) or `~seasonal` (dormant between recurring peaks), so a normalized `100` isn't misread as real popularity.
 - `table` output draws sparklines for humans; `csv`/`json` emit the full timeline / ranked lists for machines.
 - No credentials are stored — nothing to log in to, nothing under `~/.config`.

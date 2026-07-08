@@ -54,7 +54,8 @@ Examples:
   gsc query --days 90 --dimensions page --sort impressions
   gsc query --dimensions query,page --filter "query contains shoes" --output csv
   gsc query --dimensions date --start 2026-01-01 --end 2026-06-30
-Filter operators: contains, equals, notContains, notEquals, includingRegex, excludingRegex`,
+Filter operators: contains, equals, notContains, notEquals, includingRegex, excludingRegex
+Note: in csv/json output, ctr is a raw fraction (0–1); the table displays it as a percentage.`,
     )
     .action(async (siteArg: string | undefined, opts: QueryOptions) => {
       const site = resolveSite(siteArg)
@@ -86,18 +87,23 @@ Filter operators: contains, equals, notContains, notEquals, includingRegex, excl
         ...(opts.fresh ? { dataState: 'all' } : {}),
       }
       // The API only orders by clicks; a global ranking by another metric needs the whole dataset first.
-      const fetched = await querySearchAnalytics(site, requestBody, sort ? Math.max(limit, SORT_FETCH_CAP) : limit)
+      const fetchLimit = sort ? Math.max(limit, SORT_FETCH_CAP) : limit
+      const fetched = await querySearchAnalytics(site, requestBody, fetchLimit)
 
       if (sort) {
         fetched.sort((a: SearchAnalyticsRow, b: SearchAnalyticsRow) => (opts.asc ? a[sort] - b[sort] : b[sort] - a[sort]))
-        if (fetched.length >= SORT_FETCH_CAP) {
-          console.error(pc.yellow(`Note: ranking computed over the first ${formatInt(SORT_FETCH_CAP)} rows; the dataset is larger.`))
+        if (fetched.length >= fetchLimit) {
+          console.error(pc.yellow(`Note: ranking computed over the first ${formatInt(fetchLimit)} rows; the dataset may be larger.`))
         }
       }
       const rows = fetched.slice(0, limit)
 
       const flat = rows.map((row) => flattenRow(row, dimensions))
       const headers = [...dimensions, 'clicks', 'impressions', 'ctr', 'position']
+
+      if (rows.length === 0) {
+        console.error(`No data for ${site} between ${range.startDate} and ${range.endDate}.`)
+      }
 
       if (output === 'json') {
         console.log(JSON.stringify(flat, null, 2))
@@ -108,10 +114,7 @@ Filter operators: contains, equals, notContains, notEquals, includingRegex, excl
         return
       }
 
-      if (rows.length === 0) {
-        console.error(`No data for ${site} between ${range.startDate} and ${range.endDate}.`)
-        return
-      }
+      if (rows.length === 0) return
       const rightAlign = headers.map((h) => ['clicks', 'impressions', 'ctr', 'position'].includes(h))
       console.log(
         renderTable(

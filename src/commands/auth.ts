@@ -28,6 +28,9 @@ export function registerAuthCommand(program: Command): void {
         writeConfig({ ...readConfig(), serviceAccountKey: keyPath })
         console.log(`${pc.green('✓')} Service account configured: ${key.client_email}`)
         console.log(pc.dim('If you have not already: add this email as a user of your property in Search Console (Settings → Users and permissions).'))
+        if (readTokens()) {
+          console.error(pc.dim('Note: existing OAuth tokens were left in place. Run `gsc auth logout` to remove them.'))
+        }
         return
       }
       if (!opts.credentials) {

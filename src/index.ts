@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module'
 import { Command } from 'commander'
 import pc from 'picocolors'
 import { registerAuthCommand } from './commands/auth.ts'
@@ -8,12 +9,14 @@ import { registerSitemapsCommand } from './commands/sitemaps.ts'
 import { registerSitesCommand } from './commands/sites.ts'
 import { CliError } from './config.ts'
 
+const { version } = createRequire(import.meta.url)('../package.json') as { version: string }
+
 const program = new Command()
 
 program
   .name('gsc')
   .description('Google Search Console from the command line')
-  .version('0.1.0')
+  .version(version)
   .addHelpText(
     'after',
     `

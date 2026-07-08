@@ -5,7 +5,11 @@ export function sparkline(values: number[]): string {
   if (values.length === 0) return ''
   const min = Math.min(...values)
   const max = Math.max(...values)
-  const span = max - min || 1
+  const span = max - min
+  if (span === 0) {
+    const flat = min > 0 ? '▄' : '▁'
+    return values.map(() => flat).join('')
+  }
   return values
     .map((v) => BLOCKS[Math.min(BLOCKS.length - 1, Math.round(((v - min) / span) * (BLOCKS.length - 1)))])
     .join('')

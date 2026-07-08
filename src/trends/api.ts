@@ -38,7 +38,7 @@ async function cookie(geo: string): Promise<string> {
 }
 
 /** Strip the `)]}',` prefix Google prepends, then parse. */
-function parseGuardedJson<T>(text: string): T {
+export function parseGuardedJson<T>(text: string): T {
   const start = text.indexOf('{')
   const arr = text.indexOf('[')
   const at = start === -1 ? arr : arr === -1 ? start : Math.min(start, arr)
@@ -52,8 +52,24 @@ function parseGuardedJson<T>(text: string): T {
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
-async function getTrends(path: string, params: Record<string, string>, geo: string): Promise<string> {
-  const url = `${BASE}${path}?${new URLSearchParams(params).toString()}`
+const GEO_RE = /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/
+
+/**
+ * Validate a geo code token (must already be uppercased). Empty string = worldwide, always allowed.
+ * Throws CliError on invalid codes.
+ */
+export function validateGeo(geo: string): void {
+  if (geo === '') return
+  if (!GEO_RE.test(geo)) {
+    throw new CliError(
+      `Invalid geo code "${geo}".`,
+      'Use a two-letter ISO 3166-1 country code (US, FR, GB…), optionally with a subdivision suffix (US-NY).',
+    )
+  }
+}
+
+/** Shared fetch helper with 3× retry/backoff and cookie refresh on 429; used by getTrends and dailyTrends. */
+async function fetchWithRetry(url: string, geo: string): Promise<string> {
   const backoff = [800, 2500, 5000]
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, {
@@ -70,9 +86,15 @@ async function getTrends(path: string, params: Record<string, string>, geo: stri
         'These endpoints are unofficial and throttled. Wait a minute and retry, or narrow the query.',
       )
     }
+    if (res.status === 400) throw new CliError('Google Trends rejected the request (HTTP 400).', 'The geo, keyword, or timeframe combination was rejected. Check your inputs.')
     if (!res.ok) throw new CliError(`Google Trends request failed (HTTP ${res.status}).`)
     return res.text()
   }
+}
+
+async function getTrends(path: string, params: Record<string, string>, geo: string): Promise<string> {
+  const url = `${BASE}${path}?${new URLSearchParams(params).toString()}`
+  return fetchWithRetry(url, geo)
 }
 
 export interface ComparisonItem {
@@ -84,7 +106,7 @@ export interface ComparisonItem {
 interface Widget {
   id: string
   token: string
-  request: unknown
+  request: Record<string, unknown> | null | undefined
 }
 
 /** Step 1 of the two-hop dance: exchange keywords for per-widget tokens. */
@@ -99,6 +121,7 @@ async function explore(items: ComparisonItem[], category: number): Promise<Widge
 }
 
 async function widgetData<T>(kind: string, widget: Widget, geo: string): Promise<T> {
+  if (widget.request == null) throw new CliError('Google Trends returned a malformed widget (no request payload).')
   const text = await getTrends(
     `/trends/api/widgetdata/${kind}`,
     { hl: 'en-US', tz: String(tz()), req: JSON.stringify(widget.request), token: widget.token },
@@ -169,7 +192,7 @@ export interface TrendingSearch {
   articleUrl?: string
 }
 
-const decodeXml = (s: string): string =>
+export const decodeXml = (s: string): string =>
   s
     .replace(/<!\[CDATA\[(.*?)\]\]>/gs, '$1')
     .replaceAll('&lt;', '<')
@@ -180,7 +203,7 @@ const decodeXml = (s: string): string =>
     .replaceAll('&amp;', '&')
     .trim()
 
-const tag = (block: string, name: string): string | undefined => {
+export const tag = (block: string, name: string): string | undefined => {
   const m = block.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`))
   return m ? decodeXml(m[1]) : undefined
 }
@@ -191,12 +214,7 @@ const tag = (block: string, name: string): string | undefined => {
  */
 export async function dailyTrends(geo: string): Promise<TrendingSearch[]> {
   const url = `${BASE}/trending/rss?geo=${encodeURIComponent(geo)}`
-  const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'en-US' } })
-  if (res.status === 429) {
-    throw new CliError('Google Trends rate-limited the request (429).', 'Wait a minute and retry.')
-  }
-  if (!res.ok) throw new CliError(`Google Trends request failed (HTTP ${res.status}).`)
-  const xml = await res.text()
+  const xml = await fetchWithRetry(url, geo)
 
   const items = xml.match(/<item>[\s\S]*?<\/item>/g) ?? []
   return items.map((block) => {

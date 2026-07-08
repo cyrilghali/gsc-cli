@@ -3,7 +3,7 @@ import pc from 'picocolors'
 import { pickCanonical } from '../../cli-util.ts'
 import { CliError } from '../../config.ts'
 import { renderTable, toCsv, truncate } from '../../format.ts'
-import { interestOverTime } from '../api.ts'
+import { interestOverTime, validateGeo } from '../api.ts'
 import { assessVolume, resample, sparkline } from '../sparkline.ts'
 
 const TIMEFRAMES = ['now 1-H', 'now 4-H', 'now 1-d', 'now 7-d', 'today 1-m', 'today 3-m', 'today 12-m', 'today 5-y', 'all'] as const
@@ -76,6 +76,7 @@ Examples:
 
       const geos = [...new Set(opts.geo.split(',').map((g) => g.trim().toUpperCase()).filter(Boolean))]
       const geoList = geos.length ? geos : ['']
+      for (const g of geoList) validateGeo(g)
       const { items, labels } = buildComparison(keywords, geoList)
 
       const { points } = await interestOverTime(items, time, category)
@@ -89,7 +90,7 @@ Examples:
           JSON.stringify(
             points.map((p) => ({
               time: p.formattedTime,
-              ...Object.fromEntries(labels.map((label, i) => [label, p.value[i] ?? 0])),
+              ...Object.fromEntries(labels.map((label, i) => [label, p.value?.[i] ?? 0])),
             })),
             null,
             2,
@@ -99,14 +100,14 @@ Examples:
       }
       if (output === 'csv') {
         const headers = ['time', ...labels]
-        console.log(toCsv(headers, points.map((p) => [p.formattedTime, ...labels.map((_, i) => p.value[i] ?? 0)])))
+        console.log(toCsv(headers, points.map((p) => [p.formattedTime, ...labels.map((_, i) => p.value?.[i] ?? 0)])))
         return
       }
 
       // Table: one sparkline summary row per compared series (keyword or geo).
       let anyLow = false
       const rows = labels.map((label, i) => {
-        const series = points.map((p) => p.value[i] ?? 0)
+        const series = points.map((p) => p.value?.[i] ?? 0)
         const spark = sparkline(resample(series, SPARK_WIDTH))
         const min = Math.min(...series)
         const max = Math.max(...series)

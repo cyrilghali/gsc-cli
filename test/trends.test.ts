@@ -11,8 +11,12 @@ test('sparkline maps min to the lowest block and max to the highest', () => {
   assert.equal(out[2], '█')
 })
 
-test('sparkline handles a flat series without dividing by zero', () => {
-  assert.equal(sparkline([7, 7, 7]), '▁▁▁')
+test('sparkline handles a flat nonzero series with mid-height blocks', () => {
+  assert.equal(sparkline([7, 7, 7]), '▄▄▄')
+})
+
+test('sparkline handles an all-zero flat series with minimum blocks', () => {
+  assert.equal(sparkline([0, 0, 0]), '▁▁▁')
 })
 
 test('sparkline returns empty string for no data', () => {

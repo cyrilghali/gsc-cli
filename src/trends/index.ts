@@ -1,7 +1,11 @@
 #!/usr/bin/env node
+import { createRequire } from 'node:module'
 import { Command } from 'commander'
 import pc from 'picocolors'
 import { CliError } from '../config.ts'
+
+const require = createRequire(import.meta.url)
+const { version } = require('../../package.json') as { version: string }
 import { registerInterestCommand } from './commands/interest.ts'
 import { registerRelatedCommand } from './commands/related.ts'
 import { registerTrendingCommand } from './commands/trending.ts'
@@ -11,7 +15,7 @@ const program = new Command()
 program
   .name('gtrends')
   .description('Google Trends from the command line (unofficial, no auth required)')
-  .version('0.1.0')
+  .version(version)
   .addHelpText(
     'after',
     `
@@ -33,7 +37,7 @@ program.parseAsync().catch((err: unknown) => {
     console.error(`${pc.red('Error:')} ${err.message}`)
     if (err.hint) console.error(pc.dim(err.hint))
   } else {
-    console.error(`${pc.red('Error:')} ${err instanceof Error ? err.message : String(err)}`)
+    console.error(`${pc.red('Unexpected error:')} ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
   }
   process.exit(1)
 })

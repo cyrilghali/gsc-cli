@@ -82,7 +82,6 @@ Examples:
       const { points } = await interestOverTime(items, time, category)
       if (points.length === 0) {
         console.error('No interest data for that query.')
-        return
       }
 
       if (output === 'json') {
@@ -105,6 +104,7 @@ Examples:
       }
 
       // Table: one sparkline summary row per compared series (keyword or geo).
+      if (points.length === 0) return
       let anyLow = false
       const rows = labels.map((label, i) => {
         const series = points.map((p) => p.value?.[i] ?? 0)

@@ -20,6 +20,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: node dist/index.js --version && node dist/trends/index.js --version
       - run: npm test
 
   build-node20:
@@ -32,3 +33,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: node dist/index.js --version && node dist/trends/index.js --version

@@ -12,7 +12,7 @@ type SourceName = (typeof VALID_SOURCES)[number]
 
 const OUTPUTS = ['table', 'json', 'csv'] as const
 
-export type MinedSignal = PainSignal & { multi_source_pain_match: boolean }
+export type MinedSignal = PainSignal & { multi_url_pain_match: boolean }
 
 interface Options {
   sources: string
@@ -23,8 +23,9 @@ interface Options {
 
 /**
  * Pure helper: merge, dedupe by URL (first wins), sort by weight desc,
- * cap at limit, then flag multi_source_pain_match on all records when
- * the merged set has ≥3 distinct URLs.
+ * cap at limit, then flag multi_url_pain_match on all records when the
+ * merged set has ≥3 distinct URLs (breadth, not source diversity — read
+ * contributing_sources in the score output for cross-source signals).
  */
 export function mergeTermSignals(
   term: string,
@@ -47,7 +48,7 @@ export function mergeTermSignals(
   const capped = merged.slice(0, limit)
   const multiMatch = seen.size >= 3
 
-  return capped.map((s) => ({ ...s, multi_source_pain_match: multiMatch }))
+  return capped.map((s) => ({ ...s, multi_url_pain_match: multiMatch }))
 }
 
 export function registerMineCommand(program: Command): void {
@@ -113,8 +114,14 @@ Examples:
         allSignals.push(...termSignals)
       }
 
-      const srcNote = sourcesUsed.size > 0 ? ` · sources: ${[...sourcesUsed].join(', ')}` : ''
-      console.error(pc.dim(`${allSignals.length} signals${srcNote}`))
+      if (sourcesUsed.size === 0) {
+        throw new CliError(
+          'All sources failed for every term — no data was mined.',
+          'Check connectivity or retry later; see the per-source errors above.',
+        )
+      }
+
+      console.error(pc.dim(`${allSignals.length} signals · sources: ${[...sourcesUsed].join(', ')}`))
 
       if (output === 'json') {
         console.log(JSON.stringify(allSignals, null, 2))
@@ -124,7 +131,7 @@ Examples:
       if (output === 'csv') {
         console.log(
           toCsv(
-            ['term', 'source', 'weight', 'matched_phrase', 'story_title', 'url', 'multi_source_pain_match'],
+            ['term', 'source', 'weight', 'matched_phrase', 'story_title', 'url', 'multi_url_pain_match'],
             allSignals.map((s) => [
               s.term,
               s.source,
@@ -132,14 +139,13 @@ Examples:
               s.matched_phrase,
               s.story_title,
               s.url,
-              String(s.multi_source_pain_match),
+              String(s.multi_url_pain_match),
             ]),
           ),
         )
         return
       }
 
-      // table output
       console.log(
         renderTable(
           ['TERM', 'SOURCE', 'WEIGHT', 'PHRASE', 'TITLE'],

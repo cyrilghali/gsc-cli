@@ -1,3 +1,4 @@
+import { sleep } from '../cli-util.ts'
 import { CliError } from '../config.ts'
 
 /**
@@ -57,7 +58,6 @@ export function parseGuardedJson<T>(text: string): T {
   }
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 const GEO_RE = /^[A-Z]{2}(-[A-Z0-9]{1,3})?$/
 

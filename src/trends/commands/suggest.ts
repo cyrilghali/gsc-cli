@@ -1,6 +1,6 @@
 import type { Command } from 'commander'
 import pc from 'picocolors'
-import { parsePositiveInt, pickCanonical } from '../../cli-util.ts'
+import { parsePositiveInt, pickCanonical, sleep } from '../../cli-util.ts'
 import { renderTable, toCsv } from '../../format.ts'
 import { autocomplete } from '../api.ts'
 
@@ -95,7 +95,7 @@ Examples:
 
       const allRecords: SuggestRecord[] = []
       for (let i = 0; i < expanded.length; i++) {
-        if (i > 0) await new Promise<void>((r) => setTimeout(r, 300))
+        if (i > 0) await sleep(300)
         const { seed, pattern, query } = expanded[i]
         const suggestions = await autocomplete(query, geo)
         for (const suggestion of suggestions.slice(0, limit)) {

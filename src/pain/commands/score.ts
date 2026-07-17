@@ -3,9 +3,9 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { Command } from 'commander'
 import pc from 'picocolors'
-import { pickCanonical } from '../../cli-util.ts'
+import { pickCanonical, slugify } from '../../cli-util.ts'
 import { renderTable, truncate } from '../../format.ts'
-import type { RankedQuery } from '../../trends/api.ts'
+import { CliError } from '../../config.ts'
 import type { SuggestRecord } from '../../trends/commands/suggest.ts'
 import { opportunityScore, parseRisingValue, patternWeight } from '../scoring.ts'
 import type { MinedSignal } from './mine.ts'
@@ -28,23 +28,16 @@ export interface ScoredTerm {
     workaround_bonus_applied: boolean
   }
   contributing_sources: string[]
-  multi_source_pain_match: boolean
+  multi_url_pain_match: boolean
   signal_count: number
   top_signals: TopSignal[]
 }
 
-/**
- * Collapse deduplicated sorted terms into a filesystem-safe slug ≤ 60 chars.
- * Steps: deduplicate → sort → join with '-' → lowercase →
- *        collapse non-alphanumerics to '-' → trim edges → truncate.
- */
+/** Collapse deduplicated sorted terms into a filesystem-safe slug ≤ 60 chars. */
 export function snapshotSlug(terms: string[]): string {
   const deduped = [...new Set(terms)]
   deduped.sort()
-  const joined = deduped.join('-')
-  const lower = joined.toLowerCase()
-  const slugged = lower.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-  return slugged.slice(0, 60)
+  return slugify(deduped.join('-')).slice(0, 60)
 }
 
 export interface RisingEntry {
@@ -93,30 +86,31 @@ export function scoreTerms(
     const keywordSignal =
       matching.length > 0 ? Math.max(...matching.map((k) => patternWeight(k.pattern))) : 0.3
 
-    // trend_velocity: max parseRisingValue over the term's attributable rising entries
+    // trend_velocity: max parseRisingValue over the term's attributable rising entries.
+    // Word-boundary matching — a bare substring test lets a short seed like "ai"
+    // inherit unrelated breakouts ("ukraine" contains "ai").
     const trendAbsent = rising === null
     const anchors =
       matching.length > 0
         ? [...new Set(matching.map((k) => k.seed.toLowerCase()))]
         : [term.toLowerCase()]
+    const anchorPatterns = anchors.map(
+      (a) => new RegExp(`\\b${a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`),
+    )
     const attributable = trendAbsent
       ? []
-      : rising.filter((r) => anchors.some((a) => r.query.toLowerCase().includes(a)))
+      : rising.filter((r) => anchorPatterns.some((p) => p.test(r.query.toLowerCase())))
     const trendVelocity =
       attributable.length > 0 ? Math.max(...attributable.map((r) => parseRisingValue(r.value))) : 0
 
-    // pain_depth: mean of signal weights
     const painDepth = termSignals.reduce((sum, s) => sum + s.weight, 0) / termSignals.length
     const workaroundDetected = termSignals.some((s) => s.workaround_detected)
 
-    // contributing_sources: sorted distinct source values
     const sourcesSet = new Set(termSignals.map((s) => s.source))
     const contributing_sources = [...sourcesSet].sort()
 
-    // multi_source_pain_match: any signal is flagged
-    const multi_source_pain_match = termSignals.some((s) => s.multi_source_pain_match)
+    const multi_url_pain_match = termSignals.some((s) => s.multi_url_pain_match)
 
-    // top_signals: top 3 by weight desc
     const sortedByWeight = [...termSignals].sort((a, b) => b.weight - a.weight)
     const top_signals: TopSignal[] = sortedByWeight.slice(0, 3).map((s) => ({
       url: s.url,
@@ -141,7 +135,7 @@ export function scoreTerms(
         workaround_bonus_applied: breakdown.workaround_bonus_applied,
       },
       contributing_sources,
-      multi_source_pain_match,
+      multi_url_pain_match,
       signal_count: termSignals.length,
       top_signals,
     })
@@ -182,34 +176,82 @@ Examples:
     .action((signalsFile: string, opts: ScoreOptions) => {
       const output = pickCanonical(opts.output, OUTPUTS, '--output')
 
-      // Read signals file (works for /dev/stdin via readFileSync path)
-      const signals = JSON.parse(readFileSync(signalsFile, 'utf8')) as MinedSignal[]
+      // readFileSync also covers /dev/stdin for piped input
+      const readJsonInput = (path: string, label: string, hint: string): unknown => {
+        let text: string
+        try {
+          text = readFileSync(path, 'utf8')
+        } catch (err) {
+          const code = err instanceof Error && 'code' in err ? String(err.code) : ''
+          throw new CliError(`${label}: cannot read ${path}${code ? ` (${code})` : ''}.`, hint)
+        }
+        try {
+          return JSON.parse(text)
+        } catch {
+          throw new CliError(`${label}: ${path} is not valid JSON.`, hint)
+        }
+      }
 
-      // Optional keywords file (gtrends suggest -o json → SuggestRecord[])
-      const keywords: SuggestRecord[] = opts.keywordsFile
-        ? (JSON.parse(readFileSync(opts.keywordsFile, 'utf8')) as SuggestRecord[])
-        : []
+      const signalsRaw = readJsonInput(
+        signalsFile,
+        'signals',
+        'Pass gpain mine -o json output (a JSON array of signals).',
+      )
+      if (!Array.isArray(signalsRaw)) {
+        throw new CliError(
+          'signals: expected a JSON array (gpain mine -o json output).',
+          'Snapshot files wrap results in { results, … } — pass the mine output, not a snapshot.',
+        )
+      }
+      if (signalsRaw.length === 0) {
+        throw new CliError(
+          'signals: the file contains no signals — nothing to score.',
+          'An empty mine result means no pain was found for these terms (the RAS branch).',
+        )
+      }
+      const signals = signalsRaw as MinedSignal[]
 
-      // Optional trend file (gtrends related -o json → { top, rising })
+      let keywords: SuggestRecord[] = []
+      if (opts.keywordsFile) {
+        const raw = readJsonInput(
+          opts.keywordsFile,
+          'keywords-file',
+          'Pass gtrends suggest -o json output ({ seed, pattern, suggestion } records).',
+        )
+        if (!Array.isArray(raw)) {
+          throw new CliError('keywords-file: expected a JSON array of suggest records.')
+        }
+        keywords = raw as SuggestRecord[]
+      }
+
       // Keep query + numeric .value per entry (never formattedValue)
       let rising: RisingEntry[] | null = null
       if (opts.trendFile) {
-        const trendData = JSON.parse(readFileSync(opts.trendFile, 'utf8')) as {
-          top: RankedQuery[]
-          rising: RankedQuery[]
+        const raw = readJsonInput(
+          opts.trendFile,
+          'trend-file',
+          'Pass gtrends related -o json output (an object with top/rising arrays).',
+        ) as { rising?: unknown }
+        if (raw === null || typeof raw !== 'object' || !Array.isArray(raw.rising)) {
+          throw new CliError(
+            'trend-file: expected { top: [...], rising: [...] }.',
+            'Merge multiple related outputs into one object whose rising field concatenates the arrays.',
+          )
         }
-        rising = trendData.rising.map((r) => ({ query: r.query, value: r.value }))
+        rising = (raw.rising as { query: string; value: number }[]).map((r) => ({
+          query: r.query,
+          value: r.value,
+        }))
       }
 
       // Optional enrichment file — forwarded verbatim, never enters the formula
       let enrichment: unknown
       if (opts.enrichmentFile) {
-        enrichment = JSON.parse(readFileSync(opts.enrichmentFile, 'utf8'))
+        enrichment = readJsonInput(opts.enrichmentFile, 'enrichment-file', 'Any JSON document.')
       }
 
       const ranked = scoreTerms(signals, keywords, rising)
 
-      // Snapshot write (R7)
       const terms = [...new Set(signals.map((s) => s.term))]
       const slug = snapshotSlug(terms)
       const now = new Date()
@@ -217,21 +259,20 @@ Examples:
       const snapshotPath =
         opts.out ??
         join(homedir(), '.claude', 'saas-suite', 'snapshots', `${slug}-${date}.json`)
-      const snapshotPayload =
-        enrichment !== undefined ? { results: ranked, enrichment } : ranked
+      const snapshot = {
+        slug,
+        results: ranked,
+        ...(enrichment !== undefined ? { enrichment } : {}),
+      }
       mkdirSync(dirname(snapshotPath), { recursive: true })
-      writeFileSync(snapshotPath, JSON.stringify(snapshotPayload, null, 2))
+      writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2))
       console.error(pc.dim(`snapshot → ${snapshotPath}`))
 
-      // Render
-      const payload = enrichment !== undefined ? { results: ranked, enrichment } : ranked
-
       if (output === 'json') {
-        console.log(JSON.stringify(payload, null, 2))
+        console.log(JSON.stringify({ ...snapshot, snapshot_path: snapshotPath }, null, 2))
         return
       }
 
-      // table: TERM / SCORE / SOURCES / SIGNALS
       console.log(
         renderTable(
           ['TERM', 'SCORE', 'SOURCES', 'SIGNALS'],

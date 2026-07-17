@@ -30,3 +30,13 @@ export function pickCanonical(value: string, allowed: readonly string[], flag: s
 
 /** Collector for repeatable commander options. */
 export const collect = (value: string, previous: string[]): string[] => [...previous, value]
+
+export const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
+
+/** Lowercase, collapse non-alphanumerics to hyphens, trim hyphen edges. */
+export function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}

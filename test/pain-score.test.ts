@@ -6,11 +6,10 @@ import { tmpdir } from 'node:os'
 import type { PainSignal } from '../src/pain/signal.ts'
 import { scoreTerms, snapshotSlug } from '../src/pain/commands/score.ts'
 import type { ScoredTerm } from '../src/pain/commands/score.ts'
-
-type MinedSignal = PainSignal & { multi_source_pain_match: boolean }
+import type { MinedSignal } from '../src/pain/commands/mine.ts'
 
 function sig(
-  overrides: Partial<PainSignal> & { url: string; weight: number; term: string } & { multi_source_pain_match?: boolean },
+  overrides: Partial<PainSignal> & { url: string; weight: number; term: string } & { multi_url_pain_match?: boolean },
 ): MinedSignal {
   return {
     source: 'hn',
@@ -19,7 +18,7 @@ function sig(
     matched_phrase: 'would pay',
     workaround_detected: false,
     created_at: '2026-01-01T00:00:00Z',
-    multi_source_pain_match: false,
+    multi_url_pain_match: false,
     ...overrides,
   }
 }
@@ -90,6 +89,30 @@ test('scoreTerms: term matching a keyword seed gets that seed\'s best pattern we
   const ranked = scoreTerms(signals, keywords, null)
   // best pattern for the seed is 'alternative to {seed}' → 0.9 → component 0.9 × 0.35
   assert.ok(Math.abs(ranked[0].breakdown.keyword_signal - 0.9 * 0.35) < 1e-9)
+})
+
+// ── Test 1c: velocity anchors respect word boundaries ─────────────────────────
+
+test('scoreTerms: a short seed does not inherit velocity from an unrelated breakout containing it as substring', () => {
+  const signals: MinedSignal[] = [sig({ term: 'ai', url: 'https://hn.com/a', weight: 0.5 })]
+  const keywords = [{ seed: 'ai', pattern: 'alternative to {seed}', suggestion: 'ai' }]
+  const ranked = scoreTerms(signals, keywords, [
+    { query: 'ukraine', value: 9500 },
+    { query: 'ai coding tools', value: 150 },
+  ])
+  // 'ukraine' contains 'ai' but is not a word match; only the 150 entry counts → 0.5 × 0.25
+  assert.ok(Math.abs((ranked[0].breakdown.trend_velocity as number) - 0.5 * 0.25) < 1e-9)
+})
+
+// ── Test 1d: multi_url_pain_match propagates from signals to the scored term ──
+
+test('scoreTerms: multi_url_pain_match true on any signal propagates to the term', () => {
+  const signals: MinedSignal[] = [
+    sig({ term: 'crm', url: 'https://hn.com/1', weight: 0.9, multi_url_pain_match: true }),
+    sig({ term: 'crm', url: 'https://hn.com/2', weight: 0.5, multi_url_pain_match: true }),
+  ]
+  const ranked = scoreTerms(signals, [], null)
+  assert.equal(ranked[0].multi_url_pain_match, true)
 })
 
 // ── Test 2: no trend file → 'absent' marker, 0 contribution ──────────────────

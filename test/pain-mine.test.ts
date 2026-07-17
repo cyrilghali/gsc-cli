@@ -73,9 +73,9 @@ test('mergeTermSignals: rejected source is ignored, fulfilled signals survive', 
   assert.equal(merged[1].weight, 2)
 })
 
-// ── Test 3: multi_source_pain_match flag ──────────────────────────────────────
+// ── Test 3: multi_url_pain_match flag ──────────────────────────────────────
 
-test('mergeTermSignals: multi_source_pain_match true when ≥3 distinct URLs, false when <3', () => {
+test('mergeTermSignals: multi_url_pain_match true when ≥3 distinct URLs, false when <3', () => {
   // Case A: 3 distinct URLs → all flagged true
   const threeSignals: PainSignal[] = [
     sig({ url: 'https://example.com/1', weight: 3, source: 'hn' }),
@@ -88,7 +88,7 @@ test('mergeTermSignals: multi_source_pain_match true when ≥3 distinct URLs, fa
   const mergedWith3 = mergeTermSignals('saas', resultsWith3, 50)
   assert.equal(mergedWith3.length, 3)
   for (const s of mergedWith3) {
-    assert.equal(s.multi_source_pain_match, true, `expected true for url=${s.url}`)
+    assert.equal(s.multi_url_pain_match, true, `expected true for url=${s.url}`)
   }
 
   // Case B: 2 distinct URLs → all flagged false
@@ -102,7 +102,7 @@ test('mergeTermSignals: multi_source_pain_match true when ≥3 distinct URLs, fa
   const mergedWith2 = mergeTermSignals('saas', resultsWith2, 50)
   assert.equal(mergedWith2.length, 2)
   for (const s of mergedWith2) {
-    assert.equal(s.multi_source_pain_match, false, `expected false for url=${s.url}`)
+    assert.equal(s.multi_url_pain_match, false, `expected false for url=${s.url}`)
   }
 })
 

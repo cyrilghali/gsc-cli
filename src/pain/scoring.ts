@@ -52,40 +52,73 @@ export function anchorRoots(term: string): string[] {
     })
 }
 
+type CompiledPhrase = PhraseEntry & { readonly re: RegExp }
+
+const compilePhrases = (entries: readonly PhraseEntry[]): readonly CompiledPhrase[] =>
+  entries.map((e) => ({ ...e, re: new RegExp(e.pattern, 'gi') }))
+
+const COMPILED_SHARED = compilePhrases(SHARED_PHRASES)
+const compiledWithExtras = new WeakMap<readonly PhraseEntry[], readonly CompiledPhrase[]>()
+
+function compiledFor(extraPhrases?: readonly PhraseEntry[]): readonly CompiledPhrase[] {
+  if (extraPhrases == null) return COMPILED_SHARED
+  let compiled = compiledWithExtras.get(extraPhrases)
+  if (compiled == null) {
+    compiled = compilePhrases([...SHARED_PHRASES, ...extraPhrases])
+    compiledWithExtras.set(extraPhrases, compiled)
+  }
+  return compiled
+}
+
+const rootsCache = new Map<string, string[]>()
+
+function cachedRoots(term: string): string[] {
+  let roots = rootsCache.get(term)
+  if (roots == null) {
+    roots = anchorRoots(term)
+    rootsCache.set(term, roots)
+  }
+  return roots
+}
+
 export function scorePhrase(
   text: string,
   term: string,
   extraPhrases?: readonly PhraseEntry[],
 ): { matched_phrase: string; weight: number; workaround_detected: boolean } | null {
   const lower = text.toLowerCase()
-  const roots = anchorRoots(term)
+  const roots = cachedRoots(term)
 
+  // A root only anchors at a word start — bare indexOf would match "api"
+  // inside "capital". Prefix matching on the right is intended (invoic → invoicing).
   const termPositions: number[] = []
   for (const root of roots) {
     let seek = 0
     while (seek < lower.length) {
       const idx = lower.indexOf(root, seek)
       if (idx === -1) break
-      termPositions.push(idx)
+      if (idx === 0 || !/[a-z0-9]/.test(lower[idx - 1])) termPositions.push(idx)
       seek = idx + 1
     }
   }
   if (termPositions.length === 0) return null
 
-  const phrases: readonly PhraseEntry[] = extraPhrases != null ? [...SHARED_PHRASES, ...extraPhrases] : SHARED_PHRASES
-
   let best: { matched_phrase: string; weight: number; workaround_detected: boolean } | null = null
 
-  for (const entry of phrases) {
-    const re = new RegExp(entry.pattern, 'gi')
+  for (const entry of compiledFor(extraPhrases)) {
+    entry.re.lastIndex = 0
     let m: RegExpExecArray | null
-    while ((m = re.exec(lower)) !== null) {
+    while ((m = entry.re.exec(lower)) !== null) {
       const pidx = m.index
-      const minDist = Math.min(...termPositions.map((t) => Math.abs(pidx - t)))
+      let minDist = Infinity
+      for (const t of termPositions) {
+        const d = Math.abs(pidx - t)
+        if (d < minDist) minDist = d
+      }
       if (minDist <= 150 && (best === null || entry.weight > best.weight)) {
         best = { matched_phrase: m[0], weight: entry.weight, workaround_detected: entry.workaround }
       }
-      if (m.index === re.lastIndex) re.lastIndex++
+      if (m.index === entry.re.lastIndex) entry.re.lastIndex++
     }
   }
 

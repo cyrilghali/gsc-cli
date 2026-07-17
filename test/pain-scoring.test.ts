@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { scorePhrase, parseRisingValue, opportunityScore } from '../src/pain/scoring.ts'
+import { scorePhrase, parseRisingValue, opportunityScore, DEV_TO_PHRASES } from '../src/pain/scoring.ts'
 
 test('scorePhrase returns highest-weight match when multiple phrases appear near the term', () => {
   const text = 'frustrated with how invoicing works, i would pay for a better solution'
@@ -46,4 +46,11 @@ test('opportunityScore breakdown carries weighted contributions and workaround_b
 
   const r2 = opportunityScore({ keywordSignal: 0, trendVelocity: 0, painDepth: 0, workaroundDetected: true })
   assert.equal(r2.breakdown.workaround_bonus_applied, true)
+})
+
+// ── Word-boundary anchoring: roots must not match mid-word ────────────────────
+
+test('scorePhrase: root does not anchor inside an unrelated word', () => {
+  const r = scorePhrase('I struggled with capital management integrations', 'api', DEV_TO_PHRASES)
+  assert.equal(r, null)
 })

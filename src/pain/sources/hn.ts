@@ -1,8 +1,8 @@
+import { sleep } from '../../cli-util.ts'
 import { CliError } from '../../config.ts'
+import { fetchSource } from '../http.ts'
 import { scorePhrase } from '../scoring.ts'
 import type { PainSignal } from '../signal.ts'
-
-const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 interface HnHit {
   objectID: string
@@ -13,33 +13,6 @@ interface HnHit {
 
 interface HnResponse {
   hits: HnHit[]
-}
-
-async function fetchHn(url: string): Promise<Response> {
-  for (let attempt = 0; attempt <= 1; attempt++) {
-    const ac = new AbortController()
-    const timer = setTimeout(() => ac.abort(), 30_000)
-    try {
-      const res = await fetch(url, { signal: ac.signal })
-      if (res.status === 429) {
-        if (attempt === 0) {
-          await sleep(1000)
-          continue
-        }
-        throw new CliError('hn: HTTP 429')
-      }
-      if (!res.ok) throw new CliError(`hn: HTTP ${res.status}`)
-      return res
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        throw new CliError('hn: request timed out (30 s).', 'Check your connection.')
-      }
-      throw err
-    } finally {
-      clearTimeout(timer)
-    }
-  }
-  throw new CliError('hn: unexpected state after retry')
 }
 
 /**
@@ -70,7 +43,7 @@ export async function mineHn(term: string, days: number): Promise<PainSignal[]> 
       `&hitsPerPage=20` +
       `&numericFilters=created_at_i>${cutoff}`
 
-    const res = await fetchHn(url)
+    const res = await fetchSource(url, 'hn')
 
     let data: unknown
     try {

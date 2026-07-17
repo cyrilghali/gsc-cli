@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { Command } from 'commander'
 import pc from 'picocolors'
 import { CliError } from '../config.ts'
+import { registerMineCommand } from './commands/mine.ts'
 
 const { version } = createRequire(import.meta.url)('../../package.json') as { version: string }
 
@@ -21,6 +22,8 @@ Getting started:
 Note: sources are unauthenticated public feeds (Hacker News Algolia API, dev.to).
 Rate limits are generous — if you see errors, wait a moment and retry.`,
   )
+
+registerMineCommand(program)
 
 program.parseAsync().catch((err: unknown) => {
   if (err instanceof CliError) {

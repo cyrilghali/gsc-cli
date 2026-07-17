@@ -47,19 +47,27 @@ export function snapshotSlug(terms: string[]): string {
   return slugged.slice(0, 60)
 }
 
+export interface RisingEntry {
+  query: string
+  value: number
+}
+
 /**
  * Pure scoring helper: groups signals by term, computes per-term components,
  * calls opportunityScore, and returns results ranked by score desc.
  *
- * @param signals    - pain signals (from gpain mine -o json)
- * @param keywords   - suggest records (from gtrends suggest -o json); pass [] when no file
- * @param risingValues - numeric .value fields from rising entries in gtrends related -o json;
- *                       null when the trend file was not provided (marks breakdown as 'absent')
+ * @param signals  - pain signals (from gpain mine -o json)
+ * @param keywords - suggest records (from gtrends suggest -o json); pass [] when no file
+ * @param rising   - rising entries from gtrends related -o json; null when the trend
+ *                   file was not provided (marks breakdown as 'absent'). Velocity is
+ *                   attributed per term: only entries whose query contains the term's
+ *                   seed (or the term itself when no keyword record matches) count —
+ *                   a global max would be driven by unrelated breakout noise.
  */
 export function scoreTerms(
   signals: MinedSignal[],
   keywords: SuggestRecord[],
-  risingValues: number[] | null,
+  rising: RisingEntry[] | null,
 ): ScoredTerm[] {
   // Group signals by term, preserving insertion order
   const byTerm = new Map<string, MinedSignal[]>()
@@ -80,12 +88,17 @@ export function scoreTerms(
     const keywordSignal =
       matching.length > 0 ? Math.max(...matching.map((k) => patternWeight(k.pattern))) : 0.3
 
-    // trend_velocity: max parseRisingValue over rising values; 0 when file absent or empty
-    const trendAbsent = risingValues === null
+    // trend_velocity: max parseRisingValue over the term's attributable rising entries
+    const trendAbsent = rising === null
+    const anchors =
+      matching.length > 0
+        ? [...new Set(matching.map((k) => k.seed.toLowerCase()))]
+        : [term.toLowerCase()]
+    const attributable = trendAbsent
+      ? []
+      : rising.filter((r) => anchors.some((a) => r.query.toLowerCase().includes(a)))
     const trendVelocity =
-      !trendAbsent && risingValues.length > 0
-        ? Math.max(...risingValues.map(parseRisingValue))
-        : 0
+      attributable.length > 0 ? Math.max(...attributable.map((r) => parseRisingValue(r.value))) : 0
 
     // pain_depth: mean of signal weights
     const painDepth = termSignals.reduce((sum, s) => sum + s.weight, 0) / termSignals.length
@@ -173,14 +186,14 @@ Examples:
         : []
 
       // Optional trend file (gtrends related -o json → { top, rising })
-      // Extract numeric .value from rising entries (never formattedValue)
-      let risingValues: number[] | null = null
+      // Keep query + numeric .value per entry (never formattedValue)
+      let rising: RisingEntry[] | null = null
       if (opts.trendFile) {
         const trendData = JSON.parse(readFileSync(opts.trendFile, 'utf8')) as {
           top: RankedQuery[]
           rising: RankedQuery[]
         }
-        risingValues = trendData.rising.map((r) => r.value)
+        rising = trendData.rising.map((r) => ({ query: r.query, value: r.value }))
       }
 
       // Optional enrichment file — forwarded verbatim, never enters the formula
@@ -189,7 +202,7 @@ Examples:
         enrichment = JSON.parse(readFileSync(opts.enrichmentFile, 'utf8'))
       }
 
-      const ranked = scoreTerms(signals, keywords, risingValues)
+      const ranked = scoreTerms(signals, keywords, rising)
 
       // Snapshot write (R7)
       const terms = [...new Set(signals.map((s) => s.term))]

@@ -38,10 +38,14 @@ test('scoreTerms: ranks by score desc, case-insensitive keyword join, distinct s
     { seed: 'crm', pattern: 'alternative to {seed}', suggestion: 'CRM Alternative' },
   ]
 
-  // parseRisingValue(150) = 150/300 = 0.5
-  const risingValues = [150]
+  // parseRisingValue(150) = 150/300 = 0.5 — only the seed-matching entry counts;
+  // the unrelated breakout junk (value 13000) must be filtered out, not drive a global max
+  const rising = [
+    { query: 'best crm software', value: 150 },
+    { query: 'lidl near me', value: 13000 },
+  ]
 
-  const ranked = scoreTerms(signals, keywords, risingValues)
+  const ranked = scoreTerms(signals, keywords, rising)
 
   assert.equal(ranked.length, 2)
 
@@ -117,8 +121,8 @@ test('scoreTerms: workaround signal gets 1.2× pain bonus, scores higher than tw
   const maxSignals: MinedSignal[] = [
     sig({ term: 'max-term', url: 'https://hn.com/m', weight: 1.0, workaround_detected: true }),
   ]
-  const maxKeywords = [{ seed: 's', pattern: 'alternative to {seed}', suggestion: 'max-term' }]
-  const maxRanked = scoreTerms(maxSignals, maxKeywords, [5000])
+  const maxKeywords = [{ seed: 'max', pattern: 'alternative to {seed}', suggestion: 'max-term' }]
+  const maxRanked = scoreTerms(maxSignals, maxKeywords, [{ query: 'max tools', value: 5000 }])
   assert.equal(maxRanked[0].score, 1)
 })
 

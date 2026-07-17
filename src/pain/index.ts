@@ -4,6 +4,7 @@ import { Command } from 'commander'
 import pc from 'picocolors'
 import { CliError } from '../config.ts'
 import { registerMineCommand } from './commands/mine.ts'
+import { registerScoreCommand } from './commands/score.ts'
 
 const { version } = createRequire(import.meta.url)('../../package.json') as { version: string }
 
@@ -24,6 +25,7 @@ Rate limits are generous — if you see errors, wait a moment and retry.`,
   )
 
 registerMineCommand(program)
+registerScoreCommand(program)
 
 program.parseAsync().catch((err: unknown) => {
   if (err instanceof CliError) {

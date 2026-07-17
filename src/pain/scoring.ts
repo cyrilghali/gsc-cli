@@ -28,24 +28,45 @@ export function patternWeight(pattern: string): number {
   return 0.3
 }
 
+/**
+ * Anchor roots for a term: one lowercase root per token, with common suffixes
+ * stripped so "invoicing" also anchors on "invoice"/"invoices" in the text.
+ * A root shorter than 4 chars falls back to the full token ("api", "crm").
+ */
+export function anchorRoots(term: string): string[] {
+  return term
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 0)
+    .map((token) => {
+      for (const suffix of ['ing', 'es', 's']) {
+        if (token.endsWith(suffix) && token.length - suffix.length >= 4) {
+          return token.slice(0, token.length - suffix.length)
+        }
+      }
+      return token
+    })
+}
+
 export function scorePhrase(
   text: string,
   term: string,
   extraPhrases?: readonly PhraseEntry[],
 ): { matched_phrase: string; weight: number; workaround_detected: boolean } | null {
   const lower = text.toLowerCase()
-  const lterm = term.toLowerCase()
-
-  if (!lower.includes(lterm)) return null
+  const roots = anchorRoots(term)
 
   const termPositions: number[] = []
-  let seek = 0
-  while (seek < lower.length) {
-    const idx = lower.indexOf(lterm, seek)
-    if (idx === -1) break
-    termPositions.push(idx)
-    seek = idx + 1
+  for (const root of roots) {
+    let seek = 0
+    while (seek < lower.length) {
+      const idx = lower.indexOf(root, seek)
+      if (idx === -1) break
+      termPositions.push(idx)
+      seek = idx + 1
+    }
   }
+  if (termPositions.length === 0) return null
 
   const phrases: readonly PhraseEntry[] = extraPhrases != null ? [...SHARED_PHRASES, ...extraPhrases] : SHARED_PHRASES
 

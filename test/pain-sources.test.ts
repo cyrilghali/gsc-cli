@@ -26,7 +26,9 @@ const HN_FIXTURE = {
 
 test('mineHn returns exactly one signal for the matching comment and none for unrelated', async (t) => {
   let capturedUrl = ''
+  let fetchCalls = 0
   t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
+    fetchCalls++
     capturedUrl = typeof url === 'string' ? url : url instanceof URL ? url.href : (url as Request).url
     return new Response(JSON.stringify(HN_FIXTURE), {
       status: 200,
@@ -36,7 +38,8 @@ test('mineHn returns exactly one signal for the matching comment and none for un
 
   const signals = await mineHn('invoicing', 30)
 
-  // URL shape
+  // URL shape — one request per query probe, hits deduped by objectID
+  assert.equal(fetchCalls, 6)
   assert.ok(capturedUrl.includes('tags=comment'), 'URL must contain tags=comment')
   assert.ok(/created_at_i>\d{10}(?!\d)/.test(capturedUrl), 'cutoff must be 10-digit epoch seconds, not milliseconds')
 
@@ -106,6 +109,7 @@ test('mineHn retries once on 429 and resolves with results from second attempt',
   })
 
   const signals = await mineHn('invoicing', 30)
-  assert.equal(callCount, 2)
+  // probe 1: 429 + retry (2 calls), probes 2-6: one call each
+  assert.equal(callCount, 7)
   assert.deepEqual(signals, [])
 })

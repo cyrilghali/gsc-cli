@@ -1,23 +1,27 @@
-export type PhraseEntry = { readonly phrase: string; readonly weight: number; readonly workaround: boolean }
+// `pattern` is a case-insensitive regex source. Live comments phrase pain with
+// interleaved words and inflections ("would happily pay", "frustrating") that
+// exact n-grams never hit — the probe measured a 0/14 exact-match rate on
+// comments that Algolia's AND-query had already pre-selected for those words.
+export type PhraseEntry = { readonly pattern: string; readonly weight: number; readonly workaround: boolean }
 
 export const SHARED_PHRASES = [
-  { phrase: 'would pay', weight: 1.0, workaround: false },
-  { phrase: "i'd pay", weight: 1.0, workaround: false },
-  { phrase: 'is there a tool', weight: 0.85, workaround: false },
-  { phrase: 'does anyone know of', weight: 0.85, workaround: false },
-  { phrase: 'use a spreadsheet', weight: 0.90, workaround: true },
-  { phrase: 'manually', weight: 0.90, workaround: true },
-  { phrase: 'i wish there was', weight: 0.65, workaround: false },
-  { phrase: 'someone should build', weight: 0.65, workaround: false },
-  { phrase: 'frustrated with', weight: 0.55, workaround: false },
-  { phrase: 'hate that', weight: 0.55, workaround: false },
+  { pattern: "(?:would|'d) (?:\\w+ ){0,2}pay", weight: 1.0, workaround: false },
+  { pattern: '(?:happy|willing) to pay', weight: 1.0, workaround: false },
+  { pattern: 'is there (?:a|an|any) (?:\\w+ )?(?:tool|app|service|saas)', weight: 0.85, workaround: false },
+  { pattern: 'does anyone know of', weight: 0.85, workaround: false },
+  { pattern: 'spreadsheets?', weight: 0.8, workaround: true },
+  { pattern: 'manual(?:ly| process)', weight: 0.9, workaround: true },
+  { pattern: 'wish there (?:was|were)', weight: 0.65, workaround: false },
+  { pattern: 'someone should (?:build|make)', weight: 0.65, workaround: false },
+  { pattern: 'frustrat(?:ed|ing)', weight: 0.55, workaround: false },
+  { pattern: 'hate (?:that|how)', weight: 0.55, workaround: false },
 ] as const satisfies readonly PhraseEntry[]
 
 export const DEV_TO_PHRASES = [
-  { phrase: 'struggle with', weight: 0.55, workaround: false },
-  { phrase: 'we had to manually', weight: 0.90, workaround: true },
-  { phrase: 'before i built', weight: 0.65, workaround: false },
-  { phrase: 'painful', weight: 0.55, workaround: false },
+  { pattern: 'struggl(?:e|ed|ing)', weight: 0.55, workaround: false },
+  { pattern: 'had to manually', weight: 0.9, workaround: true },
+  { pattern: 'before i built', weight: 0.65, workaround: false },
+  { pattern: 'painful', weight: 0.55, workaround: false },
 ] as const satisfies readonly PhraseEntry[]
 
 export function patternWeight(pattern: string): number {
@@ -73,16 +77,15 @@ export function scorePhrase(
   let best: { matched_phrase: string; weight: number; workaround_detected: boolean } | null = null
 
   for (const entry of phrases) {
-    const lphrase = entry.phrase.toLowerCase()
-    let ppos = 0
-    while (ppos < lower.length) {
-      const pidx = lower.indexOf(lphrase, ppos)
-      if (pidx === -1) break
+    const re = new RegExp(entry.pattern, 'gi')
+    let m: RegExpExecArray | null
+    while ((m = re.exec(lower)) !== null) {
+      const pidx = m.index
       const minDist = Math.min(...termPositions.map((t) => Math.abs(pidx - t)))
       if (minDist <= 150 && (best === null || entry.weight > best.weight)) {
-        best = { matched_phrase: entry.phrase, weight: entry.weight, workaround_detected: entry.workaround }
+        best = { matched_phrase: m[0], weight: entry.weight, workaround_detected: entry.workaround }
       }
-      ppos = pidx + 1
+      if (m.index === re.lastIndex) re.lastIndex++
     }
   }
 

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CliError } from '../src/config.ts'
 import { autocomplete } from '../src/trends/api.ts'
+import { DEFAULT_PATTERNS, dedupeSuggestions, expandSeeds } from '../src/trends/commands/suggest.ts'
 
 // ── autocomplete ──────────────────────────────────────────────────────────────
 
@@ -64,4 +65,47 @@ test('autocomplete: throws CliError after exhausting all 429 retries', async (t)
     () => autocomplete('seed', 'US'),
     (e: unknown) => e instanceof CliError,
   )
+})
+
+// ── suggest helpers ───────────────────────────────────────────────────────────
+
+test('expandSeeds: one seed × DEFAULT_PATTERNS → 4 queries, first is "alternative to crm", all carry seed + pattern template', () => {
+  const expanded = expandSeeds(['crm'], DEFAULT_PATTERNS)
+  assert.equal(expanded.length, DEFAULT_PATTERNS.length)
+  assert.equal(expanded[0].query, 'alternative to crm')
+  assert.equal(expanded[0].seed, 'crm')
+  assert.equal(expanded[0].pattern, DEFAULT_PATTERNS[0])
+  for (let i = 0; i < expanded.length; i++) {
+    assert.equal(expanded[i].seed, 'crm')
+    assert.equal(expanded[i].pattern, DEFAULT_PATTERNS[i])
+  }
+})
+
+test('dedupeSuggestions: duplicate suggestion strings across two expanded queries are deduplicated (first wins)', () => {
+  const records = [
+    { seed: 'crm', pattern: 'alternative to {seed}', suggestion: 'salesforce' },
+    { seed: 'crm', pattern: '{seed} for', suggestion: 'hubspot' },
+    { seed: 'crm', pattern: '{seed} pricing', suggestion: 'hubspot' }, // duplicate — should be dropped
+    { seed: 'crm', pattern: 'how to {seed} without', suggestion: 'zoho' },
+  ]
+  const deduped = dedupeSuggestions(records)
+  assert.equal(deduped.length, 3)
+  assert.deepEqual(
+    deduped.map((r) => r.suggestion),
+    ['salesforce', 'hubspot', 'zoho'],
+  )
+  // First occurrence of 'hubspot' wins — carries its original pattern
+  assert.equal(deduped[1].pattern, '{seed} for')
+})
+
+test('expandSeeds records carry {seed, pattern} verbatim into SuggestRecord shape', () => {
+  const patterns = ['alternative to {seed}', '{seed} pricing']
+  const expanded = expandSeeds(['crm'], patterns)
+  // Simulate what the action does: pair each expansion with a suggestion
+  const records = expanded.map(({ seed, pattern }) => ({ seed, pattern, suggestion: 'fake' }))
+  assert.equal(records[0].seed, 'crm')
+  assert.equal(records[0].pattern, 'alternative to {seed}')
+  assert.equal(records[1].seed, 'crm')
+  assert.equal(records[1].pattern, '{seed} pricing')
+  assert.equal(records[0].suggestion, 'fake')
 })

@@ -96,10 +96,17 @@ export async function mineHn(term: string, days: number): Promise<PainSignal[]> 
   const signals: PainSignal[] = []
 
   for (const hit of hits) {
-    const text = hit.comment_text ?? ''
-    const scored = scorePhrase(text, term)
+    // Algolia returns comment_text with HTML tags and entities (&#x27; for ');
+    // score on the cleaned text or apostrophe patterns never match
+    const stripped = (hit.comment_text ?? '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&#x27;|&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&gt;/g, '>')
+      .replace(/&lt;/g, '<')
+      .replace(/&amp;/g, '&')
+    const scored = scorePhrase(stripped, term)
     if (scored === null) continue
-    const stripped = text.replace(/<[^>]*>/g, '')
     signals.push({
       source: 'hn',
       term,

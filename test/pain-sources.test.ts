@@ -113,3 +113,26 @@ test('mineHn retries once on 429 and resolves with results from second attempt',
   assert.equal(callCount, 7)
   assert.deepEqual(signals, [])
 })
+
+// ── Test 5: HN entity decoding — &#x27; apostrophes must not defeat matching ──
+
+test('mineHn decodes HTML entities before scoring', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () =>
+    new Response(
+      JSON.stringify({
+        hits: [{
+          objectID: 'h9',
+          comment_text: 'I&#x27;d happily pay for decent invoicing software',
+          story_title: '',
+          created_at: '2026-07-01T00:00:00Z',
+        }],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ),
+  )
+
+  const signals = await mineHn('invoicing', 30)
+  assert.equal(signals.length, 1)
+  assert.equal(signals[0].weight, 1.0)
+  assert.ok(signals[0].excerpt.includes("I'd happily pay"))
+})

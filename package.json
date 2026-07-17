@@ -4,6 +4,7 @@
   "description": "Google Search Console and Google Trends from the command line — gsc + gtrends",
   "type": "module",
   "bin": {
+    "gpain": "dist/pain/index.js",
     "gsc": "dist/index.js",
     "gtrends": "dist/trends/index.js"
   },

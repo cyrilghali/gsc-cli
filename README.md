@@ -4,7 +4,7 @@
 
 Google Search Console from the command line: search analytics, sitemaps, URL inspection.
 
-Ships two binaries: **`gsc`** (Search Console, needs your Google credentials) and **`gtrends`** (Google Trends, no auth — see [below](#gtrends-google-trends)).
+Ships three binaries: **`gsc`** (Search Console, needs your Google credentials), **`gtrends`** (Google Trends, no auth — see [below](#gtrends-google-trends)), and **`gpain`** (community pain-signal mining, no auth — see [below](#gpain-pain-signal-mining)).
 
 ```
 $ gsc query sc-domain:example.com --days 28
@@ -130,12 +130,29 @@ gtrends interest "climatiseur mobile" --geo FR,BE,CH,LU   # one term across geos
 gtrends interest chatgpt --time "today 5-y" --output csv > interest.csv
 gtrends related "electric car" --geo US           # top (established) + rising (breakout) queries
 gtrends trending --geo FR                          # today's trending searches
+gtrends suggest "crm" -n 5                         # commercial-intent keyword expansion via Autocomplete
 ```
 
 - Values are Google's own 0–100 scale, relative to each series' own peak (100). `--geo` takes a two-letter country (`trending` defaults to US; `interest` and `related` default to worldwide); `interest` also accepts a comma-separated list (`--geo FR,BE,CH,LU`) to compare one keyword across countries on a single shared scale — keywords × geos must stay ≤ 5. `--time` (`now 1-H`, `now 4-H`, `now 1-d`, `now 7-d`, `today 1-m`, `today 3-m`, `today 12-m`, `today 5-y`, `all`) and `--category` apply to both `interest` and `related`.
 - Because every series is normalized to its own peak, a term with almost no volume still shows `100`. `interest` flags such series in the table: `⚠noise` (negligible or just emerging) or `~seasonal` (dormant between recurring peaks), so a normalized `100` isn't misread as real popularity.
 - `table` output draws sparklines for humans; `csv`/`json` emit the full timeline / ranked lists for machines.
 - No credentials are stored — nothing to log in to, nothing under `~/.config`.
+
+## `gpain` (pain-signal mining)
+
+A third binary for mining community pain signals — the raw material of micro-SaaS opportunity scanning. No auth: it queries the [HN Algolia API](https://hn.algolia.com/api) (comments) and the [dev.to Forem API](https://developers.forem.com/api/v1) (articles), scores each hit against a table of pain-phrase patterns ("would happily pay", "frustrating", "spreadsheet", …) anchored near your search term, and ranks the results.
+
+```sh
+gpain mine "invoicing" "crm" --days 90 -o json     # pain signals per term, weighted and deduped
+gpain mine "zapier alternative" -o json | gpain score /dev/stdin
+gpain score signals.json \
+  --keywords-file suggest.json \                    # gtrends suggest -o json (commercial-intent weight)
+  --trend-file related.json                         # gtrends related -o json (trend velocity weight)
+```
+
+- `mine` emits one record per matching comment/article: `term`, `source`, `weight`, `matched_phrase`, `url`, plus `multi_url_pain_match` when a term matched ≥3 distinct URLs.
+- `score` combines keyword-pattern weight (0.35), trend velocity (0.25), and pain depth (0.40, with a 1.2× bonus when a workaround phrase like "manually" or "spreadsheet" was detected) into an opportunity score ∈ [0,1], and always writes a snapshot (`--out`, default under `~/.claude/saas-suite/snapshots/`) so successive scans can be diffed.
+- Sources fail independently: if one API is down its failure is reported on stderr and the others still contribute; the command errors only when every source failed.
 
 ## Development
 

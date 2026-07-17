@@ -6,6 +6,7 @@ import { CliError } from '../config.ts'
 
 import { registerInterestCommand } from './commands/interest.ts'
 import { registerRelatedCommand } from './commands/related.ts'
+import { registerSuggestCommand } from './commands/suggest.ts'
 import { registerTrendingCommand } from './commands/trending.ts'
 
 const { version } = createRequire(import.meta.url)('../../package.json') as { version: string }
@@ -22,6 +23,7 @@ program
 Getting started:
   gtrends interest "chatgpt" "claude"      compare interest over time
   gtrends related "electric car" --geo US  top & rising related queries
+  gtrends suggest "crm" -n 5              autocomplete suggestions via patterns
   gtrends trending --geo FR                today's trending searches
 
 Note: these hit Google Trends' internal endpoints. They are unauthenticated and
@@ -30,6 +32,7 @@ rate-limited — if you see a 429, wait a minute and retry.`,
 
 registerInterestCommand(program)
 registerRelatedCommand(program)
+registerSuggestCommand(program)
 registerTrendingCommand(program)
 
 program.parseAsync().catch((err: unknown) => {

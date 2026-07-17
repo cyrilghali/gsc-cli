@@ -83,8 +83,13 @@ export function scoreTerms(
   const results: ScoredTerm[] = []
 
   for (const [term, termSignals] of byTerm) {
-    // keyword_signal: max patternWeight over case-insensitively matching suggestions; 0.3 if none
-    const matching = keywords.filter((k) => k.suggestion.toLowerCase() === term.toLowerCase())
+    // keyword_signal: max patternWeight over case-insensitively matching records; 0.3 if none.
+    // A term matches on its exact suggestion, or on its seed — mining runs at seed level
+    // (pain phrases anchor on the topic word), while patterns are confirmed per suggestion.
+    const termLower = term.toLowerCase()
+    const matching = keywords.filter(
+      (k) => k.suggestion.toLowerCase() === termLower || k.seed.toLowerCase() === termLower,
+    )
     const keywordSignal =
       matching.length > 0 ? Math.max(...matching.map((k) => patternWeight(k.pattern))) : 0.3
 

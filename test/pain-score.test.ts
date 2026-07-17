@@ -76,6 +76,22 @@ test('scoreTerms: ranks by score desc, case-insensitive keyword join, distinct s
   assert.deepEqual(inv.contributing_sources, ['hn'])
 })
 
+// ── Test 1b: seed-level join — a term equal to a seed inherits its best pattern ─
+
+test('scoreTerms: term matching a keyword seed gets that seed\'s best pattern weight', () => {
+  const signals: MinedSignal[] = [
+    sig({ term: 'invoicing', url: 'https://hn.com/3', weight: 0.6 }),
+  ]
+  const keywords = [
+    { seed: 'invoicing', pattern: '{seed} pricing', suggestion: 'invoicing pricing 2026' },
+    { seed: 'invoicing', pattern: 'alternative to {seed}', suggestion: 'alternative to xero' },
+  ]
+
+  const ranked = scoreTerms(signals, keywords, null)
+  // best pattern for the seed is 'alternative to {seed}' → 0.9 → component 0.9 × 0.35
+  assert.ok(Math.abs(ranked[0].breakdown.keyword_signal - 0.9 * 0.35) < 1e-9)
+})
+
 // ── Test 2: no trend file → 'absent' marker, 0 contribution ──────────────────
 
 test('scoreTerms: risingValues=null marks breakdown trend_velocity as "absent" and contributes 0', () => {

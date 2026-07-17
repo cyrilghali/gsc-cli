@@ -227,6 +227,76 @@ export const tag = (block: string, name: string): string | undefined => {
 }
 
 /**
+ * Closure-local retry for the Autocomplete endpoint. Deliberately isolated from
+ * fetchWithRetry and cachedCookie: the suggest API needs no session cookie and
+ * must never read or write module-level cookie state.
+ */
+async function fetchAutocomplete(url: string): Promise<string> {
+  const backoff = [800, 2500, 5000]
+  for (let attempt = 0; ; attempt++) {
+    const ac = new AbortController()
+    const timer = setTimeout(() => ac.abort(), 30_000)
+    try {
+      const res = await fetch(url, { signal: ac.signal })
+      if (res.status === 429) {
+        if (attempt < backoff.length) {
+          await sleep(backoff[attempt])
+          continue
+        }
+        throw new CliError(
+          'Google Autocomplete rate-limited the request (429).',
+          'Wait a minute and retry, or narrow the query.',
+        )
+      }
+      if (!res.ok) throw new CliError(`Google Autocomplete request failed (HTTP ${res.status}).`)
+      return res.text()
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new CliError('Google Autocomplete request timed out (30 s).', 'Try again, or check your connection.')
+      }
+      throw err
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+}
+
+/**
+ * Google Autocomplete suggestions for `query` in the given `geo` (ISO 3166-1,
+ * e.g. "US"). Empty `geo` sends an empty `gl` value, which returns worldwide
+ * suggestions. The function uses its own fetch path with no Cookie header and
+ * plain JSON parsing — the suggest API has a different format and rate-limit
+ * profile from the Trends endpoints.
+ *
+ * Throws CliError if the response shape no longer matches `[query, string[]]`.
+ */
+export async function autocomplete(query: string, geo: string): Promise<string[]> {
+  const params = new URLSearchParams({ client: 'chrome', q: query, hl: 'en', gl: geo })
+  const url = `https://suggestqueries.google.com/complete/search?${params.toString()}`
+  const text = await fetchAutocomplete(url)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new CliError(
+      'The autocomplete response shape changed: could not parse JSON.',
+      'Google may have updated the suggest endpoint format.',
+    )
+  }
+  if (
+    !Array.isArray(parsed) ||
+    !Array.isArray(parsed[1]) ||
+    !(parsed[1] as unknown[]).every((s) => typeof s === 'string')
+  ) {
+    throw new CliError(
+      'The autocomplete response shape changed.',
+      'Expected an array where index [1] is an array of strings.',
+    )
+  }
+  return parsed[1] as string[]
+}
+
+/**
  * Today's trending searches for a geo. Google retired the old `dailytrends` JSON
  * endpoint (now 404); this reads the current `/trending/rss` feed instead.
  */

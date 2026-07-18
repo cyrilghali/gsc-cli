@@ -270,8 +270,8 @@ async function fetchAutocomplete(url: string): Promise<string> {
  *
  * Throws CliError if the response shape no longer matches `[query, string[]]`.
  */
-export async function autocomplete(query: string, geo: string): Promise<string[]> {
-  const params = new URLSearchParams({ client: 'chrome', q: query, hl: 'en', gl: geo })
+export async function autocomplete(query: string, geo: string, lang = 'en'): Promise<string[]> {
+  const params = new URLSearchParams({ client: 'chrome', q: query, hl: lang, gl: geo })
   const url = `https://suggestqueries.google.com/complete/search?${params.toString()}`
   const text = await fetchAutocomplete(url)
   let parsed: unknown

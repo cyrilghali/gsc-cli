@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { Command } from 'commander'
 import pc from 'picocolors'
 import { CliError } from '../config.ts'
+import { registerEnrichCommand } from './commands/enrich.ts'
 import { registerMineCommand } from './commands/mine.ts'
 import { registerSaturateCommand } from './commands/saturate.ts'
 import { registerScoreCommand } from './commands/score.ts'
@@ -25,6 +26,7 @@ Note: sources are unauthenticated public feeds (Hacker News Algolia API, dev.to)
 Rate limits are generous — if you see errors, wait a moment and retry.`,
   )
 
+registerEnrichCommand(program)
 registerMineCommand(program)
 registerSaturateCommand(program)
 registerScoreCommand(program)

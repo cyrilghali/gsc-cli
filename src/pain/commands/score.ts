@@ -34,6 +34,54 @@ export interface ScoredTerm {
   saturation?: number | null
   accessibility?: number | null
   opportunity?: number | null
+  enrichment?: EnrichmentMetrics | null
+  sweet_spot?: SweetSpot | null
+}
+
+export interface EnrichmentMetrics {
+  search_volume: number | null
+  cpc: number | null
+  competition_index: number | null
+  keyword_difficulty: number | null
+}
+
+export interface SweetSpot {
+  micro_volume: boolean
+  monetizable: boolean
+  low_difficulty: boolean
+  verdict: boolean
+}
+
+/**
+ * The micro-SaaS keyword sweet spot: enough searches to matter but too few
+ * for incumbents to chase (50–2000/mo), buyers who pay (CPC ≥ $2), and a
+ * SERP a small site can crack (KD < 30). The verdict gates the P1 label in
+ * reports; it never changes the opportunity ranking.
+ */
+export function sweetSpot(m: EnrichmentMetrics): SweetSpot {
+  const micro_volume = m.search_volume !== null && m.search_volume >= 50 && m.search_volume <= 2000
+  const monetizable = m.cpc !== null && m.cpc >= 2
+  const low_difficulty = m.keyword_difficulty !== null && m.keyword_difficulty < 30
+  return { micro_volume, monetizable, low_difficulty, verdict: micro_volume && monetizable && low_difficulty }
+}
+
+/** Attach typed enrichment metrics per term (case-insensitive). No re-ranking. */
+export function applyEnrichment(
+  ranked: ScoredTerm[],
+  enriched: (EnrichmentMetrics & { term: string })[],
+): ScoredTerm[] {
+  const byTerm = new Map(enriched.map((e) => [e.term.toLowerCase(), e]))
+  return ranked.map((t) => {
+    const e = byTerm.get(t.term.toLowerCase())
+    if (e === undefined) return { ...t, enrichment: null, sweet_spot: null }
+    const metrics: EnrichmentMetrics = {
+      search_volume: e.search_volume,
+      cpc: e.cpc,
+      competition_index: e.competition_index,
+      keyword_difficulty: e.keyword_difficulty,
+    }
+    return { ...t, enrichment: metrics, sweet_spot: sweetSpot(metrics) }
+  })
 }
 
 export interface SaturationEntry {
@@ -195,7 +243,7 @@ export function registerScoreCommand(program: Command): void {
     .option('--keywords-file <path>', 'gtrends suggest -o json output (keyword signal enrichment)')
     .option('--trend-file <path>', 'gtrends related -o json output (trend velocity enrichment)')
     .option('--saturation-file <path>', 'gpain saturate -o json output (re-ranks by opportunity = score × accessibility)')
-    .option('--enrichment-file <path>', 'arbitrary JSON forwarded verbatim as enrichment (not scored)')
+    .option('--enrichment-file <path>', 'gpain enrich -o json output (attached per term with sweet-spot verdict); other JSON forwarded verbatim')
     .option(
       '--out <path>',
       'write ranked snapshot JSON here (default: ~/.claude/saas-suite/snapshots/…)',
@@ -301,14 +349,28 @@ Examples:
         saturations = raw as SaturationEntry[]
       }
 
-      // Optional enrichment file — forwarded verbatim, never enters the formula
+      // Enrichment file: gpain enrich -o json output is recognized and attached
+      // per term (with a sweet-spot verdict); any other JSON shape is forwarded
+      // verbatim into the snapshot without entering the formula.
       let enrichment: unknown
+      let typedEnrichment: (EnrichmentMetrics & { term: string })[] | null = null
       if (opts.enrichmentFile) {
         enrichment = readJsonInput(opts.enrichmentFile, 'enrichment-file', 'Any JSON document.')
+        if (
+          Array.isArray(enrichment) &&
+          enrichment.length > 0 &&
+          enrichment.every(
+            (e) => e !== null && typeof e === 'object' && typeof (e as Record<string, unknown>).term === 'string',
+          )
+        ) {
+          typedEnrichment = enrichment as (EnrichmentMetrics & { term: string })[]
+          enrichment = undefined
+        }
       }
 
       let ranked = scoreTerms(signals, keywords, rising)
       if (saturations !== null) ranked = applySaturation(ranked, saturations)
+      if (typedEnrichment !== null) ranked = applyEnrichment(ranked, typedEnrichment)
 
       const terms = [...new Set(signals.map((s) => s.term))]
       const slug = snapshotSlug(terms)

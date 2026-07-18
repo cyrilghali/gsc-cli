@@ -31,11 +31,12 @@ function hintForStatus(status: number): string | undefined {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, pathOrUrl: string, body?: unknown): Promise<T> {
   const token = await getAccessToken()
+  const url = /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : BASE_URL + pathOrUrl
   let res: Response
   try {
-    res = await fetch(BASE_URL + path, {
+    res = await fetch(url, {
       method,
       headers: {
         authorization: `Bearer ${token}`,
@@ -44,7 +45,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
   } catch (err) {
-    throw new CliError(`Could not reach the Search Console API: ${err instanceof Error ? err.message : String(err)}`, 'Check your network connection.')
+    throw new CliError(`Could not reach the Google API: ${err instanceof Error ? err.message : String(err)}`, 'Check your network connection.')
   }
   const text = await res.text()
   if (!res.ok) {
@@ -194,3 +195,61 @@ export const inspectUrl = (site: string, url: string): Promise<InspectionRespons
     inspectionUrl: url,
     siteUrl: site,
   })
+
+// ── Indexing API ──────────────────────────────────────────────────────────────
+
+const INDEXING_BASE = 'https://indexing.googleapis.com/v3'
+
+const INDEXING_403_HINT =
+  'Enable the "Web Search Indexing API" in your Google Cloud project ' +
+  '(console.cloud.google.com/apis/library/indexing.googleapis.com) ' +
+  'and re-run `gsc auth login` — the indexing scope was added to the default login.'
+
+function wrapIndexing403(err: unknown): never {
+  if (err instanceof ApiError && err.status === 403) {
+    throw new ApiError(403, err.message, INDEXING_403_HINT)
+  }
+  throw err
+}
+
+export interface UrlNotificationEntry {
+  url?: string
+  type?: 'URL_UPDATED' | 'URL_DELETED'
+  notifyTime?: string
+}
+
+export interface UrlNotificationMetadata {
+  url?: string
+  latestUpdate?: UrlNotificationEntry
+  latestRemove?: UrlNotificationEntry
+}
+
+export interface UrlNotificationPublishResponse {
+  urlNotificationMetadata?: UrlNotificationMetadata
+}
+
+export async function publishUrlNotification(
+  url: string,
+  type: 'URL_UPDATED' | 'URL_DELETED',
+): Promise<UrlNotificationPublishResponse> {
+  try {
+    return await request<UrlNotificationPublishResponse>(
+      'POST',
+      `${INDEXING_BASE}/urlNotifications:publish`,
+      { url, type },
+    )
+  } catch (err) {
+    wrapIndexing403(err)
+  }
+}
+
+export async function getUrlNotificationMetadata(url: string): Promise<UrlNotificationMetadata> {
+  try {
+    return await request<UrlNotificationMetadata>(
+      'GET',
+      `${INDEXING_BASE}/urlNotifications/metadata?url=${encodeURIComponent(url)}`,
+    )
+  } catch (err) {
+    wrapIndexing403(err)
+  }
+}

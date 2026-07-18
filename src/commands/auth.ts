@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import pc from 'picocolors'
 import {
   SCOPE_FULL,
+  SCOPE_INDEXING,
   SCOPE_READONLY,
   fetchServiceAccountToken,
   loginWithOAuth,
@@ -39,7 +40,7 @@ export function registerAuthCommand(program: Command): void {
           'In Google Cloud Console: enable the "Google Search Console API", then under APIs & Services → Credentials create an OAuth client of type "Desktop app" and download its JSON.',
         )
       }
-      const scope = await loginWithOAuth(opts.credentials, opts.readonly ? SCOPE_READONLY : SCOPE_FULL)
+      const scope = await loginWithOAuth(opts.credentials, opts.readonly ? SCOPE_READONLY : `${SCOPE_FULL} ${SCOPE_INDEXING}`)
       console.log(`${pc.green('✓')} Signed in${scope.endsWith('.readonly') ? ' (read-only)' : ''}. Tokens stored in ${configDir()}`)
     })
 

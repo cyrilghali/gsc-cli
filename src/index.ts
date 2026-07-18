@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { Command } from 'commander'
 import pc from 'picocolors'
 import { registerAuthCommand } from './commands/auth.ts'
+import { registerIndexCommand } from './commands/indexing.ts'
 import { registerInspectCommand } from './commands/inspect.ts'
 import { registerQueryCommand } from './commands/query.ts'
 import { registerSitemapsCommand } from './commands/sitemaps.ts'
@@ -32,6 +33,7 @@ registerSitesCommand(program)
 registerQueryCommand(program)
 registerSitemapsCommand(program)
 registerInspectCommand(program)
+registerIndexCommand(program)
 
 program.parseAsync().catch((err: unknown) => {
   if (err instanceof CliError) {

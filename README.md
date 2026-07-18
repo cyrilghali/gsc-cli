@@ -146,6 +146,7 @@ A third binary for mining community pain signals — the raw material of micro-S
 gpain mine "invoicing" "crm" --days 90 -o json     # pain signals per term, weighted and deduped
 gpain mine "zapier alternative" -o json | gpain score /dev/stdin
 gpain saturate "crm" "crm for dentists" -o json    # market-saturation proxies per term
+gpain enrich "crm for dentists" -o table           # volume/CPC/difficulty via DataForSEO (paid)
 gpain score signals.json \
   --keywords-file suggest.json \                    # gtrends suggest -o json (commercial-intent weight)
   --trend-file related.json \                       # gtrends related -o json (trend velocity weight)
@@ -155,6 +156,7 @@ gpain score signals.json \
 - `mine` emits one record per matching comment/article: `term`, `source`, `weight`, `matched_phrase`, `url`, plus `multi_url_pain_match` when a term matched ≥3 distinct URLs.
 - `saturate` estimates how crowded the market behind a term is, from free proxies: Google Autocomplete density on `{term} vs` / `{term} alternatives` (comparison queries only exist around established incumbents) and Show HN launch count over `--days` (default 730). Every completion and title is filtered through anchored root matching before counting, so typo-tolerant matches ("mental" for "dental") and off-topic drift don't inflate the score. `presence` counts completions for the term itself — a niche with presence 0 has no search demand, low saturation alone is not a green light. Measured gradient: crm 1.00, invoicing 0.79, screenshot api 0.40, crm for dentists 0.00.
 - `score` combines keyword-pattern weight (0.35), trend velocity (0.25), and pain depth (0.40, with a 1.2× bonus when a workaround phrase like "manually" or "spreadsheet" was detected) into a demand score ∈ [0,1], and always writes a snapshot (`--out`, default under `~/.claude/saas-suite/snapshots/`) so successive scans can be diffed. With `--saturation-file`, each matched term also gets `accessibility = 1 − saturation` and `opportunity = score × accessibility`, and the ranking switches to opportunity — high demand in a saturated market is not an opportunity. Unmatched terms carry `null` (unevaluated ≠ open).
+- `enrich` is the only paid stage: it batches terms (≤1000) through DataForSEO's Google Ads search-volume and Labs keyword-difficulty live endpoints and prints the actual billed cost on stderr (~$0.05–0.10 per batch). Credentials come from `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` or `~/.config/gsc-cli/dataforseo.json` (store them with `gpain enrich --save-auth 'login:password'`). Feeding the output to `score --enrichment-file` attaches per-term metrics plus a `sweet_spot` verdict — micro volume (50–2000/mo), monetizable (CPC ≥ $2), low difficulty (KD < 30) — which gates the P1 label without changing the opportunity ranking.
 - Sources fail independently: if one API is down its failure is reported on stderr and the others still contribute; the command errors only when every source failed.
 
 ## Development

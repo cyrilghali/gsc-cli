@@ -7,6 +7,7 @@ import { CliError, readConfig, readTokens, writeTokens, type StoredTokens } from
 
 export const SCOPE_FULL = 'https://www.googleapis.com/auth/webmasters'
 export const SCOPE_READONLY = 'https://www.googleapis.com/auth/webmasters.readonly'
+export const SCOPE_INDEXING = 'https://www.googleapis.com/auth/indexing'
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'

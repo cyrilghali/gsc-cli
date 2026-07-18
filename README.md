@@ -101,6 +101,26 @@ gsc inspect https://example.com/some-page --output json
 
 Shows the index verdict, coverage state, canonicals, last crawl time, referring URLs and rich results, plus a deep link to the full report in Search Console.
 
+### Indexing
+
+Request that Google crawls (or removes) a URL via the [Indexing API](https://developers.google.com/search/apis/indexing-api/v3/quickstart):
+
+```sh
+gsc index request https://example.com/new-page
+gsc index request https://example.com/a https://example.com/b https://example.com/c
+gsc index request https://example.com/gone --deleted    # signal URL_DELETED
+gsc index request https://example.com/page --output json
+
+gsc index status https://example.com/page               # last notification metadata
+gsc index status https://example.com/page --output json
+```
+
+**Re-auth required** — `gsc index` uses Google's Indexing API which requires an additional OAuth scope. If you have existing tokens, run `gsc auth login` again (without `--readonly`) to add the indexing scope.
+
+**Caveat** — Google officially limits the Indexing API to pages with `JobPosting` or `BroadcastEvent` structured data. In practice it reliably triggers a crawl for most URLs, but indexing is never guaranteed. Default quota: 200 URLs/day per Google Cloud project.
+
+`--deleted` emits a `URL_DELETED` notification (use for pages you have removed). The default notification type is `URL_UPDATED`. A 404 from `gsc index status` means the URL was never submitted via the Indexing API — it is not an error.
+
 ### Properties
 
 ```sh

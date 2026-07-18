@@ -245,7 +245,9 @@ let cachedServiceAccountToken: string | undefined
 export async function getAccessToken(): Promise<string> {
   const serviceAccountPath = resolveServiceAccountKeyPath()
   if (serviceAccountPath) {
-    cachedServiceAccountToken ??= await fetchServiceAccountToken(serviceAccountPath)
+    // Un seul token couvrant Search Console ET l'Indexing API : les tokens
+    // service-account se forgent par scope à la demande, sans re-consentement.
+    cachedServiceAccountToken ??= await fetchServiceAccountToken(serviceAccountPath, `${SCOPE_FULL} ${SCOPE_INDEXING}`)
     return cachedServiceAccountToken
   }
 

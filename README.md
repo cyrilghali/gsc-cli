@@ -131,11 +131,13 @@ gtrends interest chatgpt --time "today 5-y" --output csv > interest.csv
 gtrends related "electric car" --geo US           # top (established) + rising (breakout) queries
 gtrends trending --geo FR                          # today's trending searches
 gtrends suggest "crm" -n 5                         # commercial-intent keyword expansion via Autocomplete
+gtrends shocks --geo FR --seeds "climatiseur"      # demand shocks: trending + breakouts probed for purchase intent
 ```
 
 - Values are Google's own 0–100 scale, relative to each series' own peak (100). `--geo` takes a two-letter country (`trending` defaults to US; `interest` and `related` default to worldwide); `interest` also accepts a comma-separated list (`--geo FR,BE,CH,LU`) to compare one keyword across countries on a single shared scale — keywords × geos must stay ≤ 5. `--time` (`now 1-H`, `now 4-H`, `now 1-d`, `now 7-d`, `today 1-m`, `today 3-m`, `today 12-m`, `today 5-y`, `all`) and `--category` apply to both `interest` and `related`.
 - Because every series is normalized to its own peak, a term with almost no volume still shows `100`. `interest` flags such series in the table: `⚠noise` (negligible or just emerging) or `~seasonal` (dormant between recurring peaks), so a normalized `100` isn't misread as real popularity.
 - `table` output draws sparklines for humans; `csv`/`json` emit the full timeline / ranked lists for machines.
+- `shocks` detects demand spikes younger than the market's reaction time — the regime where high volume and zero competitors coexist for a few weeks. It reads today's trending searches (plus rising breakouts ≥1000% for `--seeds` categories) and probes each candidate with Autocomplete for purchase-intent completions ("en stock", "where to buy", retailer names, "dupe"); long breakout queries are also probed on their 2-token product core. A news topic scores near 0 whatever its traffic; a product people are hunting scores near 1. Snapshot the JSON daily and diff — a shock is only actionable while it is new.
 - No credentials are stored — nothing to log in to, nothing under `~/.config`.
 
 ## `gpain` (pain-signal mining)

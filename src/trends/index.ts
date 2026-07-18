@@ -6,6 +6,7 @@ import { CliError } from '../config.ts'
 
 import { registerInterestCommand } from './commands/interest.ts'
 import { registerRelatedCommand } from './commands/related.ts'
+import { registerShocksCommand } from './commands/shocks.ts'
 import { registerSuggestCommand } from './commands/suggest.ts'
 import { registerTrendingCommand } from './commands/trending.ts'
 
@@ -32,6 +33,7 @@ rate-limited — if you see a 429, wait a minute and retry.`,
 
 registerInterestCommand(program)
 registerRelatedCommand(program)
+registerShocksCommand(program)
 registerSuggestCommand(program)
 registerTrendingCommand(program)
 

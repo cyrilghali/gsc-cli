@@ -58,13 +58,18 @@ export function registerIndexCommand(program: Command): void {
 
       let succeeded = 0
       let failed = 0
-      const results: { url: string; ok: boolean; notifyTime?: string; error?: string }[] = []
+      const results: { url: string; ok: boolean; notifyTime?: string; recorded?: boolean; error?: string }[] = []
 
       for (const url of urls) {
         try {
           const res = await publishUrlNotification(url, type)
-          const notifyTime = res.urlNotificationMetadata?.latestUpdate?.notifyTime
-          results.push({ url, ok: true, notifyTime })
+          const recorded = type === 'URL_DELETED'
+            ? res.urlNotificationMetadata?.latestRemove?.notifyTime
+            : res.urlNotificationMetadata?.latestUpdate?.notifyTime
+          // HTTP 200 sans notifyTime = Google a accepté l'appel mais n'a PAS
+          // enregistré la notification (restriction JobPosting appliquée en
+          // silence depuis 2024). Un ✓ serait un mensonge.
+          results.push({ url, ok: true, notifyTime: recorded, recorded: Boolean(recorded) })
           succeeded++
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err)
@@ -77,13 +82,20 @@ export function registerIndexCommand(program: Command): void {
         console.log(JSON.stringify(results, null, 2))
       } else {
         for (const r of results) {
-          if (r.ok) {
+          if (r.ok && r.recorded) {
             console.log(`${pc.green('✓')} ${r.url}${r.notifyTime ? pc.dim(` — ${r.notifyTime}`) : ''}`)
+          } else if (r.ok) {
+            console.log(`${pc.yellow('~')} ${r.url}  ${pc.dim('accepted but NOT recorded (Google JobPosting-only enforcement)')}`)
           } else {
             console.log(`${pc.red('✗')} ${r.url}  ${pc.dim(r.error ?? 'error')}`)
           }
         }
-        console.log(`\n${succeeded} submitted, ${failed} failed`)
+        const recorded = results.filter((r) => r.ok && r.recorded).length
+        const ignored = succeeded - recorded
+        console.log(`\n${recorded} recorded, ${ignored} accepted-but-ignored, ${failed} failed`)
+        if (ignored > 0) {
+          console.log(pc.dim('Google silently drops non-JobPosting URLs. Real channels: GSC sitemap + manual "Request indexing" (UI), and IndexNow for Bing.'))
+        }
       }
 
       if (failed > 0) process.exitCode = 1

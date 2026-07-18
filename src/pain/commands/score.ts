@@ -31,6 +31,39 @@ export interface ScoredTerm {
   multi_url_pain_match: boolean
   signal_count: number
   top_signals: TopSignal[]
+  saturation?: number | null
+  accessibility?: number | null
+  opportunity?: number | null
+}
+
+export interface SaturationEntry {
+  term: string
+  saturation: number
+}
+
+/**
+ * Join saturation results onto scored terms (case-insensitive by term) and
+ * re-rank by opportunity = demand score × accessibility. Terms without a
+ * saturation entry keep their demand rank via `opportunity ?? score` and are
+ * marked null — an unevaluated term is not the same as an open one.
+ */
+export function applySaturation(ranked: ScoredTerm[], saturations: SaturationEntry[]): ScoredTerm[] {
+  const byTerm = new Map(saturations.map((s) => [s.term.toLowerCase(), s.saturation]))
+  const joined = ranked.map((t) => {
+    const saturation = byTerm.get(t.term.toLowerCase())
+    if (saturation === undefined) {
+      return { ...t, saturation: null, accessibility: null, opportunity: null }
+    }
+    const accessibility = 1 - saturation
+    return {
+      ...t,
+      saturation,
+      accessibility,
+      opportunity: Number((t.score * accessibility).toFixed(6)),
+    }
+  })
+  joined.sort((a, b) => (b.opportunity ?? b.score) - (a.opportunity ?? a.score))
+  return joined
 }
 
 /** Collapse deduplicated sorted terms into a filesystem-safe slug ≤ 60 chars. */
@@ -148,6 +181,7 @@ export function scoreTerms(
 interface ScoreOptions {
   keywordsFile?: string
   trendFile?: string
+  saturationFile?: string
   enrichmentFile?: string
   out?: string
   output: string
@@ -160,6 +194,7 @@ export function registerScoreCommand(program: Command): void {
     .argument('<signals-file>', 'path to gpain mine -o json output (use /dev/stdin to pipe)')
     .option('--keywords-file <path>', 'gtrends suggest -o json output (keyword signal enrichment)')
     .option('--trend-file <path>', 'gtrends related -o json output (trend velocity enrichment)')
+    .option('--saturation-file <path>', 'gpain saturate -o json output (re-ranks by opportunity = score × accessibility)')
     .option('--enrichment-file <path>', 'arbitrary JSON forwarded verbatim as enrichment (not scored)')
     .option(
       '--out <path>',
@@ -244,13 +279,36 @@ Examples:
         }))
       }
 
+      let saturations: SaturationEntry[] | null = null
+      if (opts.saturationFile) {
+        const raw = readJsonInput(
+          opts.saturationFile,
+          'saturation-file',
+          'Pass gpain saturate -o json output (an array of { term, saturation, … }).',
+        )
+        if (
+          !Array.isArray(raw) ||
+          !raw.every(
+            (e) =>
+              e !== null &&
+              typeof e === 'object' &&
+              typeof (e as Record<string, unknown>).term === 'string' &&
+              typeof (e as Record<string, unknown>).saturation === 'number',
+          )
+        ) {
+          throw new CliError('saturation-file: expected an array of { term, saturation } records.')
+        }
+        saturations = raw as SaturationEntry[]
+      }
+
       // Optional enrichment file — forwarded verbatim, never enters the formula
       let enrichment: unknown
       if (opts.enrichmentFile) {
         enrichment = readJsonInput(opts.enrichmentFile, 'enrichment-file', 'Any JSON document.')
       }
 
-      const ranked = scoreTerms(signals, keywords, rising)
+      let ranked = scoreTerms(signals, keywords, rising)
+      if (saturations !== null) ranked = applySaturation(ranked, saturations)
 
       const terms = [...new Set(signals.map((s) => s.term))]
       const slug = snapshotSlug(terms)
@@ -273,16 +331,25 @@ Examples:
         return
       }
 
+      const withSaturation = saturations !== null
       console.log(
         renderTable(
-          ['TERM', 'SCORE', 'SOURCES', 'SIGNALS'],
+          withSaturation
+            ? ['TERM', 'OPPTY', 'SCORE', 'SATURATION', 'SOURCES', 'SIGNALS']
+            : ['TERM', 'SCORE', 'SOURCES', 'SIGNALS'],
           ranked.map((t) => [
             truncate(t.term, 30),
-            t.score.toFixed(3),
+            ...(withSaturation
+              ? [
+                  t.opportunity === null || t.opportunity === undefined ? '—' : t.opportunity.toFixed(3),
+                  t.score.toFixed(3),
+                  t.saturation === null || t.saturation === undefined ? '—' : t.saturation.toFixed(3),
+                ]
+              : [t.score.toFixed(3)]),
             t.contributing_sources.join(', '),
             String(t.signal_count),
           ]),
-          [false, true, false, true],
+          withSaturation ? [false, true, true, true, false, true] : [false, true, false, true],
         ),
       )
       console.error(pc.dim(`${ranked.length} terms scored`))

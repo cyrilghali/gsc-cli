@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { PainSignal } from '../src/pain/signal.ts'
-import { scoreTerms, snapshotSlug } from '../src/pain/commands/score.ts'
+import { applySaturation, scoreTerms, snapshotSlug } from '../src/pain/commands/score.ts'
 import type { ScoredTerm } from '../src/pain/commands/score.ts'
 import type { MinedSignal } from '../src/pain/commands/mine.ts'
 
@@ -113,6 +113,33 @@ test('scoreTerms: multi_url_pain_match true on any signal propagates to the term
   ]
   const ranked = scoreTerms(signals, [], null)
   assert.equal(ranked[0].multi_url_pain_match, true)
+})
+
+// ── Test 1e: saturation join — opportunity re-ranks, unmatched terms are null ─
+
+test('applySaturation: saturated term drops below open niche despite higher demand score; unmatched → null', () => {
+  const signals: MinedSignal[] = [
+    sig({ term: 'crm', url: 'https://hn.com/1', weight: 0.9 }),
+    sig({ term: 'crm for dentists', url: 'https://hn.com/2', weight: 0.6 }),
+    sig({ term: 'unrated', url: 'https://hn.com/3', weight: 0.5 }),
+  ]
+  const ranked = applySaturation(scoreTerms(signals, [], null), [
+    { term: 'CRM', saturation: 0.95 },
+    { term: 'crm for dentists', saturation: 0.1 },
+  ])
+
+  // demand: crm 0.9 pain > dentists 0.6 pain, but opportunity inverts the order
+  assert.equal(ranked[0].term, 'crm for dentists')
+  const dentists = ranked[0]
+  const crm = ranked.find((t) => t.term === 'crm')
+  assert.ok(crm != null)
+  assert.ok(Math.abs((dentists.opportunity as number) - dentists.score * 0.9) < 1e-6)
+  assert.ok(Math.abs((crm.opportunity as number) - crm.score * 0.05) < 1e-6)
+
+  const unrated = ranked.find((t) => t.term === 'unrated')
+  assert.ok(unrated != null)
+  assert.equal(unrated.saturation, null)
+  assert.equal(unrated.opportunity, null)
 })
 
 // ── Test 2: no trend file → 'absent' marker, 0 contribution ──────────────────

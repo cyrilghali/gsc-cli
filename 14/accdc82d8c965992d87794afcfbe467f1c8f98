@@ -1,0 +1,29 @@
+test/domains-check.test.ts
+  s_1acf04d7330d2e::t_26aaffedc0704f 1-160
+README.md
+  s_1acf04d7330d2e::t_d511883659e74e 7
+  s_1acf04d7330d2e::t_e657e682cedb65 184-204
+src/domains/commands/check.ts
+  s_1acf04d7330d2e::t_028d9cd63ff6d1 1-39,42-124
+  s_1acf04d7330d2e::t_e748df9332cc82 40-41
+package.json
+  s_1acf04d7330d2e::t_f47b6f47bc4dbb 7
+src/domains/index.ts
+  s_1acf04d7330d2e::t_d0c19626ed4ae5 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "14accdc82d8c965992d87794afcfbe467f1c8f98",
+  "prompts": {},
+  "sessions": {
+    "s_1acf04d7330d2e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "320b3154-d284-4798-8104-fa96b51cd64f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    }
+  }
+}

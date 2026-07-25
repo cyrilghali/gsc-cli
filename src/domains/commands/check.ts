@@ -1,10 +1,11 @@
 import type { Command } from 'commander'
 import pc from 'picocolors'
 import { pickCanonical, sleep } from '../../cli-util.ts'
+import { CliError } from '../../config.ts'
 
 const OUTPUTS = ['table', 'json'] as const
 
-export const ENDPOINTS: Record<string, string> = {
+const ENDPOINTS: Record<string, string> = {
   com: 'https://rdap.verisign.com/com/v1/domain',
   fr: 'https://rdap.nic.fr/domain',
 }
@@ -19,21 +20,10 @@ export interface DomainResult {
  * Expand bare names across tlds; dotted names pass through as-is.
  */
 export function expandNames(names: string[], tlds: string[]): string[] {
-  const result: string[] = []
-  for (const name of names) {
-    if (name.includes('.')) {
-      result.push(name)
-    } else {
-      for (const tld of tlds) {
-        result.push(`${name}.${tld}`)
-      }
-    }
-  }
-  return result
+  return names.flatMap((name) => (name.includes('.') ? name : tlds.map((tld) => `${name}.${tld}`)))
 }
 
 /**
- * Check a single domain via RDAP.
  * 404 → available, 200 → registered, anything else → error.
  * Per-domain errors never throw — always resolves.
  */
@@ -50,6 +40,7 @@ export async function rdapStatus(rawDomain: string): Promise<DomainResult> {
     const timer = setTimeout(() => ac.abort(), 30_000)
     try {
       const res = await fetch(url, { signal: ac.signal })
+      await res.body?.cancel() // body is never needed — release the socket promptly
       if (res.status === 429) {
         if (attempt === 0) {
           await sleep(1_000)
@@ -103,6 +94,9 @@ Examples:
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean)
+      if (tlds.length === 0) {
+        throw new CliError('--tlds produced no TLDs after parsing. Pass at least one TLD, e.g. --tlds com,fr.')
+      }
       const domains = expandNames(names, tlds)
       const results = await checkDomains(domains)
 

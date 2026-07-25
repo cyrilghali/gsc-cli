@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module'
 import { Command } from 'commander'
-import pc from 'picocolors'
-import { CliError } from '../config.ts'
+import { handleCliError } from '../cli-util.ts'
 
 import { registerCheckCommand } from './commands/check.ts'
 
@@ -29,14 +28,4 @@ Unauthenticated and rate-limited — if you see a 429, wait a moment and retry.`
 
 registerCheckCommand(program)
 
-program.parseAsync().catch((err: unknown) => {
-  if (err instanceof CliError) {
-    console.error(`${pc.red('Error:')} ${err.message}`)
-    if (err.hint) console.error(pc.dim(err.hint))
-  } else {
-    console.error(
-      `${pc.red('Unexpected error:')} ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
-    )
-  }
-  process.exit(1)
-})
+program.parseAsync().catch(handleCliError)

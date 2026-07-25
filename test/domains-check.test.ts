@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { checkDomains, expandNames, rdapStatus } from '../src/domains/commands/check.ts'
+import { Command } from 'commander'
+import { CliError } from '../src/config.ts'
+import { checkDomains, expandNames, rdapStatus, registerCheckCommand } from '../src/domains/commands/check.ts'
+
+const toUrl = (u: string | URL | Request): string =>
+  typeof u === 'string' ? u : u instanceof URL ? u.href : (u as Request).url
+
+// ── check command flag validation ─────────────────────────────────────────────
+
+test('check: empty --tlds throws CliError instead of silently checking nothing', async () => {
+  const program = new Command()
+  registerCheckCommand(program)
+  await assert.rejects(
+    program.parseAsync(['check', 'foo', '--tlds', ''], { from: 'user' }),
+    CliError,
+  )
+})
 
 // ── expandNames ───────────────────────────────────────────────────────────────
 
@@ -39,7 +55,7 @@ test('rdapStatus: HTTP 200 → registered', async (t) => {
 test('rdapStatus: bare name hits Verisign for .com and AFNIC for .fr', async (t) => {
   const calls: string[] = []
   t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
-    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.href : (url as Request).url
+    const urlStr = toUrl(url)
     calls.push(urlStr)
     return new Response('', { status: 404 })
   })
@@ -110,7 +126,7 @@ test('rdapStatus: non-abort network error (ECONNREFUSED) → error with message 
 
 test('checkDomains: 429 twice for one domain, batch continues, all domains appear in output', async (t) => {
   t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
-    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.href : (url as Request).url
+    const urlStr = toUrl(url)
     if (urlStr.includes('problem.com')) return new Response('', { status: 429 })
     return new Response('', { status: 404 })
   })
@@ -135,7 +151,7 @@ test('checkDomains: unsupported TLD domain errors, batch continues, remaining do
 
 test('checkDomains: non-abort error for one domain, batch continues', async (t) => {
   t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
-    const urlStr = typeof url === 'string' ? url : url instanceof URL ? url.href : (url as Request).url
+    const urlStr = toUrl(url)
     if (urlStr.includes('boom.com')) throw new Error('ECONNREFUSED')
     return new Response('{}', { status: 200 })
   })

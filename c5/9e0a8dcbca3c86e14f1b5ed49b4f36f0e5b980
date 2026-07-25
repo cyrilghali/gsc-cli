@@ -1,0 +1,47 @@
+src/domains/index.ts
+  s_1acf04d7330d2e::t_872c3b72981cc0 4,31
+src/domains/commands/check.ts
+  s_1acf04d7330d2e::t_01786efa58b603 4
+  s_1acf04d7330d2e::t_3a0ffbcde942ca 97-99
+  s_1acf04d7330d2e::t_ab1fab5b4054c7 8
+  s_1acf04d7330d2e::t_bf6d206cc53ea3 43
+  s_1acf04d7330d2e::t_b04b9373b300f3 23
+test/domains-check.test.ts
+  s_1acf04d7330d2e::t_17692f014387a4 3-5
+  s_1acf04d7330d2e::t_72dca2004bfcdc 10-19
+  s_1acf04d7330d2e::t_800910ef9793bd 7-9,58,129,154
+  s_1acf04d7330d2e::t_dac697614f6e57 6
+src/index.ts
+  s_1acf04d7330d2e::t_872c3b72981cc0 4,37
+src/cli-util.ts
+  s_1acf04d7330d2e::t_11f414b8949218 1,4-15
+  s_aaa999e6e459dc::t_fa7795fe04a25f 16
+src/trends/index.ts
+  s_1acf04d7330d2e::t_872c3b72981cc0 4,39
+src/pain/index.ts
+  s_1acf04d7330d2e::t_872c3b72981cc0 4,33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "c59e0a8dcbca3c86e14f1b5ed49b4f36f0e5b980",
+  "prompts": {},
+  "sessions": {
+    "s_1acf04d7330d2e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "320b3154-d284-4798-8104-fa96b51cd64f",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    },
+    "s_aaa999e6e459dc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bb53c16-70df-4985-9628-4daff5bf2414",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Cyril GHALI <cyril.ghali@tryriot.com>"
+    }
+  }
+}

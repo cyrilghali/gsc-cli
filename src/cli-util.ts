@@ -1,4 +1,18 @@
+import pc from 'picocolors'
 import { CliError, readConfig } from './config.ts'
+
+/** Shared final error handler for every bin's `program.parseAsync().catch(...)`. */
+export function handleCliError(err: unknown): never {
+  if (err instanceof CliError) {
+    console.error(`${pc.red('Error:')} ${err.message}`)
+    if (err.hint) console.error(pc.dim(err.hint))
+  } else {
+    console.error(
+      `${pc.red('Unexpected error:')} ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`,
+    )
+  }
+  process.exit(1)
+}
 
 export function resolveSite(siteArg?: string): string {
   const site = siteArg ?? readConfig().defaultSite

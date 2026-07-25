@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 import { createRequire } from 'node:module'
 import { Command } from 'commander'
-import pc from 'picocolors'
+import { handleCliError } from './cli-util.ts'
 import { registerAuthCommand } from './commands/auth.ts'
 import { registerIndexCommand } from './commands/indexing.ts'
 import { registerInspectCommand } from './commands/inspect.ts'
 import { registerQueryCommand } from './commands/query.ts'
 import { registerSitemapsCommand } from './commands/sitemaps.ts'
 import { registerSitesCommand } from './commands/sites.ts'
-import { CliError } from './config.ts'
 
 const { version } = createRequire(import.meta.url)('../package.json') as { version: string }
 
@@ -35,12 +34,4 @@ registerSitemapsCommand(program)
 registerInspectCommand(program)
 registerIndexCommand(program)
 
-program.parseAsync().catch((err: unknown) => {
-  if (err instanceof CliError) {
-    console.error(`${pc.red('Error:')} ${err.message}`)
-    if (err.hint) console.error(pc.dim(err.hint))
-  } else {
-    console.error(`${pc.red('Unexpected error:')} ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
-  }
-  process.exit(1)
-})
+program.parseAsync().catch(handleCliError)

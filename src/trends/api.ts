@@ -271,7 +271,9 @@ async function fetchAutocomplete(url: string): Promise<string> {
  * Throws CliError if the response shape no longer matches `[query, string[]]`.
  */
 export async function autocomplete(query: string, geo: string, lang = 'en'): Promise<string[]> {
-  const params = new URLSearchParams({ client: 'chrome', q: query, hl: lang, gl: geo })
+  // Without `oe`, client=chrome answers in ISO-8859-1 and `res.text()` reads it as UTF-8:
+  // every accent becomes U+FFFD and accented intent markers stop matching.
+  const params = new URLSearchParams({ client: 'chrome', q: query, hl: lang, gl: geo, ie: 'utf-8', oe: 'utf-8' })
   const url = `https://suggestqueries.google.com/complete/search?${params.toString()}`
   const text = await fetchAutocomplete(url)
   let parsed: unknown

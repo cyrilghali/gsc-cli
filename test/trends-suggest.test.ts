@@ -35,6 +35,19 @@ test('autocomplete: happy path returns suggestions array and sends no Cookie hea
   }
 })
 
+test('autocomplete: asks for a UTF-8 answer so accents survive', async (t) => {
+  let asked = ''
+  t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
+    asked = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url
+    return new Response(JSON.stringify(['clim', ['clim précommande']]), { status: 200 })
+  })
+
+  assert.deepEqual(await autocomplete('clim', 'FR', 'fr'), ['clim précommande'])
+  const params = new URL(asked).searchParams
+  assert.equal(params.get('oe'), 'utf-8')
+  assert.equal(params.get('ie'), 'utf-8')
+})
+
 test('autocomplete: retries on 429 then resolves on 200 (real 800 ms first backoff)', async (t) => {
   let calls = 0
 

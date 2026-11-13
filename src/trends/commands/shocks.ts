@@ -19,9 +19,11 @@ const OUTPUTS = ['table', 'json'] as const
 
 // Retailer names are markers too: "rowenta ventilateur darty" is someone
 // hunting where to buy, and "dupe" is someone priced out or facing a stockout.
+// "price" and "prix" are not markers: they complete transfer fees and price-war
+// headlines ("<player> prix transfert") as often as a purchase.
 export const INTENT_MARKERS: Record<string, string[]> = {
-  en: ['in stock', 'restock', 'out of stock', 'where to buy', 'buy', 'price', 'alternative', 'availability', 'preorder', 'discount', 'dupe', 'amazon', 'walmart', 'target', 'best buy', 'costco'],
-  fr: ['en stock', 'stock', 'rupture', 'disponible', 'disponibilité', 'où acheter', 'acheter', 'prix', 'alternative', 'précommande', 'promo', 'dupe', 'amazon', 'darty', 'boulanger', 'leclerc', 'castorama', 'fnac', 'cdiscount', 'lidl'],
+  en: ['in stock', 'restock', 'out of stock', 'where to buy', 'buy', 'alternative', 'availability', 'preorder', 'discount', 'dupe', 'amazon', 'walmart', 'target', 'best buy', 'costco'],
+  fr: ['en stock', 'stock', 'rupture', 'disponible', 'disponibilité', 'où acheter', 'acheter', 'alternative', 'précommande', 'promo', 'dupe', 'amazon', 'darty', 'boulanger', 'leclerc', 'castorama', 'fnac', 'cdiscount', 'lidl'],
 }
 
 const STOPWORDS = new Set(['de', 'du', 'des', 'le', 'la', 'les', 'sur', 'et', 'a', 'à', 'en', 'pour', 'the', 'of', 'for', 'and', 'on', 'in', 'with'])

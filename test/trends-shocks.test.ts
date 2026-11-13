@@ -18,8 +18,12 @@ test('intentCompletions keeps root-anchored completions with a marker, drops new
   ]
   assert.deepEqual(intentCompletions(completions, 'portasplit', INTENT_MARKERS.fr), [
     'portasplit en stock',
-    'portasplit prix',
   ])
+})
+
+test('intentCompletions ignores price talk: transfer fees and price-war headlines are not purchases', () => {
+  assert.deepEqual(intentCompletions(['morgan rogers prix', 'morgan rogers prix transfert'], 'morgan rogers', INTENT_MARKERS.fr), [])
+  assert.deepEqual(intentCompletions(['bellingham transfer price'], 'bellingham', INTENT_MARKERS.en), [])
 })
 
 test('productCore: null for short queries, first 3 non-stopword tokens for long ones', () => {

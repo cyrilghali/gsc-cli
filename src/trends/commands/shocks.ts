@@ -67,13 +67,16 @@ export function parseTraffic(traffic: string): number | null {
 
 /**
  * Completions that both anchor on the candidate's roots and carry an intent
- * marker. "portasplit en stock" counts for "portasplit"; "ukraine news" carries
- * no marker and never counts.
+ * marker as a whole word, in the words the user added to the query.
+ * "portasplit en stock" counts for "portasplit"; "ukraine news" carries no
+ * marker; "microsoft stock news" counts nothing for "microsoft stock", whose
+ * own "stock" means shares, and "stockage" is not "stock".
  */
 export function intentCompletions(completions: string[], query: string, markers: string[]): string[] {
+  const queryWords = new Set(query.toLowerCase().split(/\s+/))
   return completions.filter((c) => {
-    const lower = c.toLowerCase()
-    return containsAllRoots(c, query) && markers.some((m) => lower.includes(m))
+    const added = ` ${c.toLowerCase().split(/\s+/).filter((w) => !queryWords.has(w)).join(' ')} `
+    return containsAllRoots(c, query) && markers.some((m) => added.includes(` ${m} `))
   })
 }
 

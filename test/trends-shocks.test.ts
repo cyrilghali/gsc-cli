@@ -21,6 +21,11 @@ test('intentCompletions keeps root-anchored completions with a marker, drops new
   ])
 })
 
+test('intentCompletions counts a marker only as a whole word the user added to the query', () => {
+  const completions = ['microsoft stock price', 'microsoft stockage', 'microsoft stock news', 'microsoft stock amazon']
+  assert.deepEqual(intentCompletions(completions, 'microsoft stock', INTENT_MARKERS.fr), ['microsoft stock amazon'])
+})
+
 test('intentCompletions ignores price talk: transfer fees and price-war headlines are not purchases', () => {
   assert.deepEqual(intentCompletions(['morgan rogers prix', 'morgan rogers prix transfert'], 'morgan rogers', INTENT_MARKERS.fr), [])
   assert.deepEqual(intentCompletions(['bellingham transfer price'], 'bellingham', INTENT_MARKERS.en), [])

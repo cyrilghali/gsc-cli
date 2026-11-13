@@ -36,6 +36,8 @@ test('productCore: null for short queries, first 3 non-stopword tokens for long 
   assert.equal(productCore('shark chillpill ventilateur brumisateur'), 'shark chillpill')
   assert.equal(productCore('rowenta ventilateur sur pied turbo'), 'rowenta ventilateur')
   assert.equal(productCore('ventilateur de plafond'), null)
+  assert.equal(productCore('what time does the stock market open'), null)
+  assert.equal(productCore('quand ouvre la bourse de paris'), null)
 })
 
 test('shockScore: intent dominates, magnitude breaks ties, clamps to 1', () => {

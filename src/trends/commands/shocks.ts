@@ -33,10 +33,15 @@ const STOPWORDS = new Set(['de', 'du', 'des', 'le', 'la', 'les', 'sur', 'et', 'a
  * (non-stopword) token, stopwords kept in place so the phrase stays natural.
  * Breakout queries arrive fully qualified ("shark chillpill ventilateur
  * brumisateur") but the intent completions live on the shorter product name
- * ("shark chillpill dupe"). Null when the query is already that short.
+ * ("shark chillpill dupe"). Null when the query is already that short or is a question.
  */
+// A query that opens on a question word is a question, not a product name, and
+// its first two words ("what time") complete into other people's questions.
+const QUESTION_WORDS = new Set(['what', 'how', 'when', 'where', 'why', 'who', 'which', 'is', 'are', 'does', 'do', 'can', 'quel', 'quelle', 'quels', 'quelles', 'comment', 'quand', 'où', 'pourquoi', 'qui', 'combien', 'est-ce'])
+
 export function productCore(query: string): string | null {
   const tokens = query.toLowerCase().split(/\s+/).filter((t) => t.length > 0)
+  if (QUESTION_WORDS.has(tokens[0])) return null
   let significant = 0
   for (let i = 0; i < tokens.length; i++) {
     if (!STOPWORDS.has(tokens[i])) significant++

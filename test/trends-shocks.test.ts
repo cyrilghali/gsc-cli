@@ -26,6 +26,10 @@ test('intentCompletions counts a marker only as a whole word the user added to t
   assert.deepEqual(intentCompletions(completions, 'microsoft stock', INTENT_MARKERS.fr), ['microsoft stock amazon'])
 })
 
+test('intentCompletions reads a bare "stock" after a ticker as shares, not a purchase', () => {
+  assert.deepEqual(intentCompletions(['nvda stock', 'nvda stock price', 'nvda en stock'], 'nvda', INTENT_MARKERS.fr), ['nvda en stock'])
+})
+
 test('intentCompletions ignores price talk: transfer fees and price-war headlines are not purchases', () => {
   assert.deepEqual(intentCompletions(['morgan rogers prix', 'morgan rogers prix transfert'], 'morgan rogers', INTENT_MARKERS.fr), [])
   assert.deepEqual(intentCompletions(['bellingham transfer price'], 'bellingham', INTENT_MARKERS.en), [])
